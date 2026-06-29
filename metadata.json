@@ -1,0 +1,6 @@
+{
+  "name": "Clinical Operations & Discharge Portal",
+  "description": "A high-fidelity behavioral health workspace for clinical operations, staff management, attendance tracking, and discharge planning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
