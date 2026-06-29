@@ -48,6 +48,7 @@ export interface Client {
   id: string;
   name: string;
   program: string;
+  location: 'SF' | 'ABQ';
   admissionDate: string;
   expectedDischargeDate: string;
   status: 'Upcoming' | 'Needs Packet' | 'Completed' | 'Graduated';
@@ -63,6 +64,29 @@ export interface Client {
   };
   primaryTherapist: string;
   attendanceHistory: AttendanceEntry[];
+}
+
+export type ProgramBlock = 'DIOP' | 'DOP' | 'EIOP' | 'EOP' | 'IND';
+export type VirtualMode = 'none' | 'residence' | 'away';
+export type SpecialCode = 'L' | 'D' | 'H' | 'C';
+
+export interface CensusEntry {
+  id: string;
+  clientId: string;
+  date: string;
+  block: ProgramBlock;
+  status: 'Present' | 'Absent' | 'Special' | null;
+  excused: boolean;
+  tardy: boolean;
+  virtualMode: VirtualMode;
+  specialCode?: SpecialCode;
+  autoFilled: boolean;
+}
+
+export interface InsuranceBillingNote {
+  clientId: string;
+  weekStart: string;
+  notes: string;
 }
 
 export interface ClinicalNote {

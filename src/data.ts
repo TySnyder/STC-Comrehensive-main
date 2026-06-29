@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Staff, Client, ClinicalNote, OperationalRisk, IndSession } from './types';
+import { Staff, Client, ClinicalNote, OperationalRisk, IndSession, CensusEntry, InsuranceBillingNote, ProgramBlock, VirtualMode } from './types';
 
 export const INITIAL_STAFF: Staff[] = [
   {
@@ -104,6 +104,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-1',
     name: 'Sarah Jenkins',
     program: 'EIOP',
+    location: 'SF',
     admissionDate: '2026-05-10',
     expectedDischargeDate: '2026-06-28',
     status: 'Needs Packet',
@@ -139,6 +140,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-5',
     name: 'Isabella Ross',
     program: 'EIOP',
+    location: 'SF',
     admissionDate: '2026-05-02',
     expectedDischargeDate: '2026-06-15',
     status: 'Completed',
@@ -165,6 +167,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-7',
     name: 'Olivia Chen',
     program: 'EIOP',
+    location: 'ABQ',
     admissionDate: '2026-05-22',
     expectedDischargeDate: '2026-07-02',
     status: 'Needs Packet',
@@ -196,6 +199,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-8',
     name: 'Lucas Gray',
     program: 'EIOP',
+    location: 'ABQ',
     admissionDate: '2026-05-30',
     expectedDischargeDate: '2026-07-15',
     status: 'Upcoming',
@@ -223,6 +227,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-2',
     name: 'Liam Sterling',
     program: 'DIOP',
+    location: 'SF',
     admissionDate: '2026-05-15',
     expectedDischargeDate: '2026-06-18',
     status: 'Needs Packet',
@@ -254,6 +259,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-3',
     name: 'Sophia Vance',
     program: 'DIOP',
+    location: 'SF',
     admissionDate: '2026-04-20',
     expectedDischargeDate: '2026-06-12',
     status: 'Completed',
@@ -280,6 +286,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-4',
     name: 'Ethan Hunt',
     program: 'DIOP',
+    location: 'ABQ',
     admissionDate: '2026-03-10',
     expectedDischargeDate: '2026-06-25',
     status: 'Upcoming',
@@ -311,6 +318,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-6',
     name: 'Daniel Kim',
     program: 'DIOP',
+    location: 'ABQ',
     admissionDate: '2026-04-18',
     expectedDischargeDate: '2026-06-20',
     status: 'Graduated',
@@ -338,6 +346,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-9',
     name: 'Madison Torres',
     program: 'DOP',
+    location: 'SF',
     admissionDate: '2026-05-28',
     expectedDischargeDate: '2026-07-10',
     status: 'Needs Packet',
@@ -359,6 +368,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-10',
     name: 'Derek Pham',
     program: 'DOP',
+    location: 'ABQ',
     admissionDate: '2026-06-01',
     expectedDischargeDate: '2026-07-15',
     status: 'Upcoming',
@@ -381,6 +391,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-11',
     name: 'Rachel Kim',
     program: 'EOP',
+    location: 'SF',
     admissionDate: '2026-06-03',
     expectedDischargeDate: '2026-07-18',
     status: 'Upcoming',
@@ -402,6 +413,7 @@ export const INITIAL_CLIENTS: Client[] = [
     id: 'client-12',
     name: 'James Porter',
     program: 'EOP',
+    location: 'ABQ',
     admissionDate: '2026-05-30',
     expectedDischargeDate: '2026-07-08',
     status: 'Needs Packet',
@@ -545,6 +557,113 @@ export const CLINICAL_AUDIT_LOG_ITEMS = [
   { date: '2026-06-15 09:12 AM', action: 'Client Sarah Jenkins marked PRESENT', user: 'Dr. Aris Thorne', program: 'EIOP' },
   { date: '2026-06-15 10:45 AM', action: 'Created draft Discharge Packet', user: 'Elena Rostova', program: 'DIOP' },
   { date: '2026-06-15 11:30 AM', action: 'Uploaded Background Screening', user: 'HR System Integration', program: 'Staff - Dr. Thorne' }
+];
+
+// ─── Census seed data ────────────────────────────────────────────────────────
+
+let _ceId = 0;
+function ce(
+  clientId: string,
+  date: string,
+  block: ProgramBlock,
+  status: CensusEntry['status'],
+  opts: Partial<CensusEntry> = {}
+): CensusEntry {
+  return {
+    id: `ce-${++_ceId}`,
+    clientId, date, block,
+    status,
+    excused: false, tardy: false, virtualMode: 'none' as VirtualMode, autoFilled: false,
+    ...opts,
+  };
+}
+
+const W1 = ['2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26', '2026-06-27']; // prev week
+const W2_MON = '2026-06-29'; // current week, Monday only (in progress)
+
+export const INITIAL_CENSUS_ENTRIES: CensusEntry[] = [
+  // ── Sarah Jenkins (EIOP, SF) ─────────────────────────────────────────────
+  ...W1.map(d => ce('client-1', d, 'EIOP', 'Present', { tardy: d === '2026-06-24' })),
+  ...W1.map(d => ce('client-1', d, 'EOP', 'Present', { autoFilled: true, tardy: d === '2026-06-24' })),
+  ce('client-1', '2026-06-25', 'IND', 'Present', { virtualMode: 'residence' }),
+  ce('client-1', W2_MON, 'EIOP', 'Present'),
+  ce('client-1', W2_MON, 'EOP', 'Present', { autoFilled: true }),
+
+  // ── Isabella Ross (EIOP, SF) ──────────────────────────────────────────────
+  ...W1.map(d => ce('client-5', d, 'EIOP', 'Present')),
+  ...W1.map(d => ce('client-5', d, 'EOP', 'Present', { autoFilled: true })),
+  ce('client-5', '2026-06-26', 'EIOP', 'Absent', { excused: true }),
+  ce('client-5', '2026-06-26', 'EOP', 'Absent', { excused: true, autoFilled: true }),
+  ce('client-5', '2026-06-24', 'IND', 'Present'),
+
+  // ── Olivia Chen (EIOP, ABQ) ───────────────────────────────────────────────
+  ...W1.map(d => ce('client-7', d, 'EIOP', d === '2026-06-25' ? 'Absent' : 'Present', {
+    virtualMode: d === '2026-06-23' || d === '2026-06-27' ? 'residence' : 'none',
+    excused: d === '2026-06-25',
+  })),
+  ...W1.map(d => ce('client-7', d, 'EOP', d === '2026-06-25' ? 'Absent' : 'Present', {
+    autoFilled: true,
+    excused: d === '2026-06-25',
+    virtualMode: d === '2026-06-23' || d === '2026-06-27' ? 'residence' : 'none',
+  })),
+  ce('client-7', '2026-06-23', 'IND', 'Present', { virtualMode: 'residence' }),
+
+  // ── Lucas Gray (EIOP, ABQ) ────────────────────────────────────────────────
+  ...W1.map(d => ce('client-8', d, 'EIOP', 'Present', { tardy: d === '2026-06-25' })),
+  ...W1.map(d => ce('client-8', d, 'EOP', 'Present', { autoFilled: true, tardy: d === '2026-06-25' })),
+  ce('client-8', '2026-06-26', 'IND', 'Present'),
+
+  // ── Liam Sterling (DIOP, SF) ─────────────────────────────────────────────
+  ...W1.map(d => ce('client-2', d, 'DIOP', d === '2026-06-24' ? 'Absent' : 'Present', {
+    excused: false,
+  })),
+  ...W1.map(d => ce('client-2', d, 'DOP', d === '2026-06-24' ? 'Absent' : 'Present', { autoFilled: true })),
+  ce('client-2', '2026-06-25', 'IND', 'Present'),
+  ce('client-2', W2_MON, 'DIOP', 'Present'),
+  ce('client-2', W2_MON, 'DOP', 'Present', { autoFilled: true }),
+
+  // ── Sophia Vance (DIOP, SF) ──────────────────────────────────────────────
+  ...W1.map(d => ce('client-3', d, 'DIOP', 'Present', { tardy: d === '2026-06-23' })),
+  ...W1.map(d => ce('client-3', d, 'DOP', 'Present', { autoFilled: true, tardy: d === '2026-06-23' })),
+  ce('client-3', '2026-06-27', 'IND', 'Absent', { excused: true }),
+
+  // ── Ethan Hunt (DIOP, ABQ) ───────────────────────────────────────────────
+  ...W1.map(d => ce('client-4', d, 'DIOP', 'Present', { virtualMode: d === '2026-06-24' ? 'residence' : 'none' })),
+  ...W1.map(d => ce('client-4', d, 'DOP', 'Present', { autoFilled: true, virtualMode: d === '2026-06-24' ? 'residence' : 'none' })),
+  ce('client-4', '2026-06-26', 'IND', 'Present'),
+
+  // ── Daniel Kim (DIOP, ABQ) ───────────────────────────────────────────────
+  ...W1.map(d => ce('client-6', d, 'DIOP', d === '2026-06-27' ? 'Special' : 'Present', {
+    specialCode: d === '2026-06-27' ? 'L' : undefined,
+  })),
+  ...W1.map(d => ce('client-6', d, 'DOP', d === '2026-06-27' ? 'Special' : 'Present', {
+    autoFilled: true,
+    specialCode: d === '2026-06-27' ? 'L' : undefined,
+  })),
+  ce('client-6', '2026-06-23', 'IND', 'Present'),
+
+  // ── Madison Torres (DOP, SF) ─────────────────────────────────────────────
+  ...W1.map(d => ce('client-9', d, 'DOP', d === '2026-06-26' || d === '2026-06-27' ? 'Absent' : 'Present', {
+    excused: d === '2026-06-26',
+  })),
+  ce('client-9', '2026-06-24', 'IND', 'Present'),
+
+  // ── Derek Pham (DOP, ABQ) ────────────────────────────────────────────────
+  ...W1.map(d => ce('client-10', d, 'DOP', 'Present', { tardy: d === '2026-06-23' })),
+  ce('client-10', '2026-06-25', 'IND', 'Present'),
+
+  // ── Rachel Kim (EOP, SF) ─────────────────────────────────────────────────
+  ...W1.map(d => ce('client-11', d, 'EOP', d === '2026-06-25' ? 'Absent' : 'Present')),
+  ce('client-11', '2026-06-24', 'IND', 'Present', { virtualMode: 'away' }),
+
+  // ── James Porter (EOP, ABQ) ──────────────────────────────────────────────
+  ...W1.map(d => ce('client-12', d, 'EOP', 'Present')),
+  ce('client-12', '2026-06-26', 'IND', 'Absent', { excused: false }),
+];
+
+export const INITIAL_INSURANCE_BILLING_NOTES: InsuranceBillingNote[] = [
+  { clientId: 'client-1', weekStart: '2026-06-23', notes: 'Auth renewed 6/23 through 7/31. Confirm claim submission by EOW.' },
+  { clientId: 'client-4', weekStart: '2026-06-23', notes: 'UHC pending review — follow up Thursday re: authorization extension.' },
 ];
 
 export const SYSTEM_CONNECTIONS = [

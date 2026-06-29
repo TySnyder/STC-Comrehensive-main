@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Live client data — never commit (PHI risk)
+live data/
+*.xlsx
+*.xls
+*.csv

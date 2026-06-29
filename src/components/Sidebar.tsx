@@ -4,17 +4,18 @@
  */
 
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  ClipboardCheck, 
-  TrendingUp, 
-  FileSpreadsheet, 
-  Lock, 
-  Settings, 
-  Activity, 
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardCheck,
+  TrendingUp,
+  FileSpreadsheet,
+  Lock,
+  Settings,
+  Activity,
   Calendar,
-  AlertTriangle 
+  AlertTriangle,
+  CalendarDays,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -27,7 +28,8 @@ export default function Sidebar({ currentTab, setTab, openNoteModal }: SidebarPr
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'attendance', label: 'Attendance & Census', icon: ClipboardCheck },
+    { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
+    { id: 'census', label: 'Weekly Census', icon: CalendarDays },
     { id: 'discharge', label: 'Discharge Planning', icon: TrendingUp },
     { id: 'reports', label: 'Clinical Analytics', icon: FileSpreadsheet },
     { id: 'staff', label: 'Staff Management', icon: Activity },
