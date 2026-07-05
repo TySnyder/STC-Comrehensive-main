@@ -35,7 +35,7 @@ export default function NoteModal({
   if (!isOpen) return null;
 
   const [clientId, setClientId] = useState(preselectedClientId || clients[0]?.id || '');
-  const [noteType, setNoteType] = useState<'Clinical Summary' | 'Progress Note' | 'Operational Note' | 'Discharge Summary'>('Progress Note');
+  const [noteType, setNoteType] = useState<ClinicalNote['noteType']>('Progress Note');
   const [programContext, setProgramContext] = useState('EIOP');
   const [noteText, setNoteText] = useState('');
   
@@ -147,7 +147,7 @@ export default function NoteModal({
               <select
                 id="modal-select-type"
                 value={noteType}
-                onChange={(e) => setNoteType(e.target.value as any)}
+                onChange={(e) => setNoteType(e.target.value as ClinicalNote['noteType'])}
                 className="px-2.5 py-1.5 border border-slate-200 bg-slate-50 rounded-lg focus:outline-indigo-500 font-medium"
               >
                 <option value="Progress Note">Progress Note</option>

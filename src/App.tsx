@@ -15,6 +15,11 @@ import StaffView from './components/StaffView';
 import SettingsView from './components/SettingsView';
 import NoteModal from './components/NoteModal';
 import CensusView from './components/CensusView';
+import ScheduleView from './components/ScheduleView';
+import UaTrackingView from './components/UaTrackingView';
+import DischargeClientModal from './components/DischargeClientModal';
+import { applyDischarge, reverseDischarge, updateEpisode, readmitClient, DischargeInput } from './utils/episodeHelpers';
+import { useLocalStorageState } from './utils/useLocalStorageState';
 
 import {
   INITIAL_CLIENTS,
@@ -24,8 +29,10 @@ import {
   INITIAL_IND_SESSIONS,
   INITIAL_CENSUS_ENTRIES,
   INITIAL_INSURANCE_BILLING_NOTES,
+  INITIAL_SESSIONS,
+  INITIAL_SLOTS,
 } from './data';
-import { IndSession, CensusEntry, InsuranceBillingNote } from './types';
+import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode } from './types';
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
@@ -41,7 +48,11 @@ export default function App() {
   const [indSessions, setIndSessions] = useState<IndSession[]>(INITIAL_IND_SESSIONS);
   const [censusEntries, setCensusEntries] = useState<CensusEntry[]>(INITIAL_CENSUS_ENTRIES);
   const [billingNotes, setBillingNotes] = useState<InsuranceBillingNote[]>(INITIAL_INSURANCE_BILLING_NOTES);
+  const [scheduleSlots, setScheduleSlots] = useLocalStorageState<GridSlot[]>('stc-schedule-slots', INITIAL_SLOTS);
+  const [uaAssignments, setUaAssignments] = useLocalStorageState<UaAssignment[]>('stc-ua-assignments', []);
+  const [timeOffRequests, setTimeOffRequests] = useLocalStorageState<TimeOffRequest[]>('stc-time-off', []);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [dischargingClient, setDischargingClient] = useState<Client | null>(null);
 
   // Notes Modal state
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -54,10 +65,11 @@ export default function App() {
   };
 
   const handleClearRisk = (id: string) => {
-    setRisks(risks.filter(r => r.id !== id));
-    // Optionally also remove riskFlag from matching client
-    setClients(clients.map(c => {
-      if (c.riskFlag && c.name === risks.find(r => r.id === id)?.entityName) {
+    const risk = risks.find(r => r.id === id);
+    setRisks(prev => prev.filter(r => r.id !== id));
+    if (!risk) return;
+    setClients(prev => prev.map(c => {
+      if (c.riskFlag && (risk.clientId ? c.id === risk.clientId : c.name === risk.entityName)) {
         return { ...c, riskFlag: undefined };
       }
       return c;
@@ -66,6 +78,40 @@ export default function App() {
 
   const handleSaveNote = (newNote: ClinicalNote) => {
     setClinicalNotes([newNote, ...clinicalNotes]);
+  };
+
+  const handleAddClient = (newClient: Client) => {
+    setClients(prev => [newClient, ...prev]);
+  };
+
+  const handleUpdateClient = (clientId: string, updates: Partial<Client>) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...updates } : c));
+    setSelectedClient(prev => prev && prev.id === clientId ? { ...prev, ...updates } : prev);
+  };
+
+  const applyClientTransform = (clientId: string, transform: (c: Client) => Client) => {
+    setClients(prev => prev.map(c => c.id === clientId ? transform(c) : c));
+    setSelectedClient(prev => prev && prev.id === clientId ? transform(prev) : prev);
+  };
+
+  const handleDischargeClient = (clientId: string, input: DischargeInput) => {
+    applyClientTransform(clientId, c => applyDischarge(c, input));
+  };
+
+  const handleReverseDischarge = (clientId: string) => {
+    applyClientTransform(clientId, reverseDischarge);
+  };
+
+  const handleUpdateEpisode = (clientId: string, episodeId: string, updates: Partial<Episode>) => {
+    applyClientTransform(clientId, c => updateEpisode(c, episodeId, updates));
+  };
+
+  const handleReadmitClient = (clientId: string, admitDate: string) => {
+    applyClientTransform(clientId, c => readmitClient(c, admitDate));
+  };
+
+  const handleImportClients = (newClients: Client[]) => {
+    setClients(prev => [...newClients, ...prev]);
   };
 
   const handleAddStaff = (newStaff: Staff) => {
@@ -121,6 +167,31 @@ export default function App() {
     });
   };
 
+  const handleUpdateDiagnoses = (updates: { clientId: string; diagnoses: string[] }[]) => {
+    setClients(prev => prev.map(c => {
+      const update = updates.find(u => u.clientId === c.id);
+      if (!update) return c;
+      const merged = Array.from(new Set([...c.diagnoses, ...update.diagnoses]));
+      return { ...c, diagnoses: merged };
+    }));
+  };
+
+  const handleImportCensus = (entries: CensusEntry[]) => {
+    setCensusEntries(prev => {
+      let result = [...prev];
+      for (const entry of entries) {
+        const idx = result.findIndex(e => e.id === entry.id);
+        if (idx >= 0) result[idx] = entry;
+        else result.push(entry);
+      }
+      return result;
+    });
+  };
+
+  const handleRemoveCensusEntry = (entryId: string) => {
+    setCensusEntries(prev => prev.filter(e => e.id !== entryId));
+  };
+
   const handleUpdateBillingNote = (note: InsuranceBillingNote) => {
     setBillingNotes(prev => {
       const idx = prev.findIndex(n => n.clientId === note.clientId && n.weekStart === note.weekStart);
@@ -150,6 +221,8 @@ export default function App() {
       case 'clients': return selectedClient ? `Client Profile: ${selectedClient.name}` : 'Client Directory';
       case 'attendance': return 'Attendance Overview';
       case 'census': return 'Weekly Census';
+      case 'ua': return 'UA Tracking';
+      case 'schedule': return 'Program Schedule Builder';
       case 'discharge': return 'Discharge Planning & Workspace';
       case 'reports': return 'Clinical Analytics & Outcomes';
       case 'staff': return 'Staff Management';
@@ -178,11 +251,15 @@ export default function App() {
       <div id="portal-workspace-section" className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         
         {/* Top Toolbar */}
-        <Header 
-          title={getTabTitle()} 
+        <Header
+          title={getTabTitle()}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           openNoteModal={() => openNoteModalWithContext()}
+          clients={clients}
+          staff={staffList}
+          onSelectClient={handleSelectClient}
+          onNavigateToStaff={() => setTab('staff')}
         />
 
         {/* Dynamic central viewport */}
@@ -205,7 +282,10 @@ export default function App() {
                 selectedClient={selectedClient}
                 onSelectClient={setSelectedClient}
                 openNoteModal={openNoteModalWithContext}
+                onAddClient={handleAddClient}
+                staffNames={staffList.map(s => s.name)}
                 onUpdateAttendance={handleUpdateClientAttendance}
+                onUpdateClient={handleUpdateClient}
               />
             )}
 
@@ -226,16 +306,49 @@ export default function App() {
                 censusEntries={censusEntries}
                 billingNotes={billingNotes}
                 onSaveCensusEntry={handleSaveCensusEntry}
+                onRemoveCensusEntry={handleRemoveCensusEntry}
                 onUpdateBillingNote={handleUpdateBillingNote}
               />
             )}
 
+            {currentTab === 'ua' && (
+              <UaTrackingView
+                clients={clients}
+                censusEntries={censusEntries}
+                assignments={uaAssignments}
+                setAssignments={setUaAssignments}
+              />
+            )}
+
+            {currentTab === 'schedule' && (
+              <ScheduleView
+                staff={staffList}
+                sessions={INITIAL_SESSIONS}
+                slots={scheduleSlots}
+                setSlots={setScheduleSlots}
+                searchTerm={searchQuery}
+                timeOffRequests={timeOffRequests}
+              />
+            )}
+
             {currentTab === 'discharge' && (
-              <DischargeView 
+              <DischargeView
                 clients={clients}
                 risks={risks}
                 onSelectClient={handleSelectClient}
                 onClearRisk={handleClearRisk}
+                onOpenDischarge={setDischargingClient}
+                onReverseDischarge={handleReverseDischarge}
+                onReadmit={handleReadmitClient}
+                onUpdateEpisode={handleUpdateEpisode}
+              />
+            )}
+
+            {dischargingClient && (
+              <DischargeClientModal
+                client={dischargingClient}
+                onClose={() => setDischargingClient(null)}
+                onDischarge={handleDischargeClient}
               />
             )}
 
@@ -246,16 +359,27 @@ export default function App() {
             )}
 
             {currentTab === 'staff' && (
-              <StaffView 
+              <StaffView
                 staffList={staffList}
                 clients={clients}
+                slots={scheduleSlots}
+                setSlots={setScheduleSlots}
+                sessions={INITIAL_SESSIONS}
+                timeOffRequests={timeOffRequests}
+                setTimeOffRequests={setTimeOffRequests}
                 onAddStaff={handleAddStaff}
                 onSelectClient={handleSelectClient}
               />
             )}
 
             {currentTab === 'settings' && (
-              <SettingsView />
+              <SettingsView
+                clients={clients}
+                censusEntries={censusEntries}
+                onImportCensus={handleImportCensus}
+                onUpdateDiagnoses={handleUpdateDiagnoses}
+                onImportClients={handleImportClients}
+              />
             )}
 
           </div>

@@ -20,71 +20,64 @@ import {
   Clock,
   Briefcase,
   ChevronRight,
-  TrendingDown
+  TrendingDown,
+  X
 } from 'lucide-react';
-import { Staff, Client } from '../types';
+import { Staff, Client, GridSlot, SessionType, TimeOffRequest } from '../types';
+import { estDischargeDate } from '../utils/dcDateHelpers';
+import TimeOffModal from './staff/TimeOffModal';
+import OnboardStaffForm, { StaffFormValues } from './staff/OnboardStaffForm';
 
 interface StaffViewProps {
   staffList: Staff[];
   clients: Client[];
+  slots: GridSlot[];
+  setSlots: React.Dispatch<React.SetStateAction<GridSlot[]>>;
+  sessions: SessionType[];
+  timeOffRequests: TimeOffRequest[];
+  setTimeOffRequests: React.Dispatch<React.SetStateAction<TimeOffRequest[]>>;
   onAddStaff: (newStaff: Staff) => void;
   onSelectClient: (client: Client) => void;
 }
 
-export default function StaffView({ staffList, clients, onAddStaff, onSelectClient }: StaffViewProps) {
+const DAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+const DAY_LABELS: Record<string, string> = {
+  MON: 'Monday', TUE: 'Tuesday', WED: 'Wednesday', THU: 'Thursday', FRI: 'Friday',
+};
+
+export default function StaffView({ staffList, clients, slots, setSlots, sessions, timeOffRequests, setTimeOffRequests, onAddStaff, onSelectClient }: StaffViewProps) {
   // Navigation internal mode: 'directory' | 'onboard' | 'profile'
   const [viewMode, setViewMode] = useState<'directory' | 'onboard' | 'profile'>('directory');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('staff-1'); // Dr. Aris Thorne defaults
 
-  // Onboard Staff Form states
-  const [formName, setFormName] = useState('');
-  const [formRole, setFormRole] = useState('Senior Clinical Therapist');
-  const [formCredentials, setFormCredentials] = useState('LCSW, PhD');
-  const [formPrograms, setFormPrograms] = useState<string[]>(['EIOP']);
-  const [formHireDate, setFormHireDate] = useState('2026-06-15');
-  const [formEmail, setFormEmail] = useState('');
-  const [formPhone, setFormPhone] = useState('');
-  const [formMaxCaseload, setFormMaxCaseload] = useState(25);
+  // Prefill for the onboarding form when editing an existing profile
+  const [editPrefill, setEditPrefill] = useState<Partial<StaffFormValues> | undefined>(undefined);
 
-  const handleProgramCheckbox = (prog: string) => {
-    if (formPrograms.includes(prog)) {
-      setFormPrograms(formPrograms.filter(p => p !== prog));
-    } else {
-      setFormPrograms([...formPrograms, prog]);
-    }
+  // Time Off modal state
+  const [showTimeOff, setShowTimeOff] = useState(false);
+
+  // Sub coverage modal state
+  const [subModalSlot, setSubModalSlot] = useState<GridSlot | null>(null);
+  const [subPickedId, setSubPickedId]   = useState<string>('');
+
+  const openSubModal = (slot: GridSlot) => {
+    setSubModalSlot(slot);
+    const others = staffList.filter(s => s.id !== slot.therapistId);
+    setSubPickedId(others[0]?.id ?? '');
   };
 
-  const handleCreateStaff = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formName) return;
+  const confirmSub = () => {
+    if (!subModalSlot || !subPickedId) return;
+    setSlots(prev => prev.map(s =>
+      s.id === subModalSlot.id ? { ...s, substituteId: subPickedId } : s
+    ));
+    setSubModalSlot(null);
+  };
 
-    const newStaff: Staff = {
-      id: `staff-${Date.now()}`,
-      name: formName,
-      role: formRole,
-      assignedProgram: formPrograms,
-      currentCaseload: 0,
-      maxCaseload: formMaxCaseload,
-      credentials: formCredentials,
-      hireDate: formHireDate,
-      email: formEmail || `${formName.toLowerCase().replace(' ', '.')}@clinicalops.org`,
-      phone: formPhone || '(512) 555-0100',
-      attendanceStatus: 'Present',
-      status: 'Active',
-      photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200&h=200'
-    };
-
-    onAddStaff(newStaff);
-    setViewMode('directory');
-
-    // Reset Form
-    setFormName('');
-    setFormRole('Clinical Case Counselor');
-    setFormCredentials('');
-    setFormPrograms(['EIOP']);
-    setFormMaxCaseload(25);
-    setFormEmail('');
-    setFormPhone('');
+  const removeSub = (slotId: string) => {
+    setSlots(prev => prev.map(s =>
+      s.id === slotId ? { ...s, substituteId: null } : s
+    ));
   };
 
   // Find selected staff
@@ -97,14 +90,37 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
     { label: 'Malpractice Liability Insurance Audit', status: 'Approved', daysLeft: 45 }
   ];
 
-  // Handle clinic schedule blocks
-  const weeklySchedule = [
-    { day: 'Monday', time: '09:00 AM - 11:30 AM', event: 'EIOP Morning Assessment Group' },
-    { day: 'Tuesday', time: '01:00 PM - 02:30 PM', event: 'EIOP Cognitive Behavioral Core' },
-    { day: 'Wednesday', time: '10:00 AM - 12:00 PM', event: 'Multidisciplinary Staff Case Round' },
-    { day: 'Thursday', time: '03:00 PM - 04:30 PM', event: 'DIOP Relapse Prevention Therapy' },
-    { day: 'Friday', time: '09:00 AM - 11:00 AM', event: 'Outpatient Exit Planning & Co-signs' }
-  ];
+  // Derive schedule rows — own assignments and coverage slots
+  const weeklySchedule = slots
+    .filter(s => s.therapistId === activeStaff?.id && s.weekIndex === 0)
+    .sort((a, b) => DAY_ORDER.indexOf(a.dayId) - DAY_ORDER.indexOf(b.dayId))
+    .map(s => {
+      const session = sessions.find(sess => sess.id === s.sessionId);
+      const sub = s.substituteId ? staffList.find(st => st.id === s.substituteId) : null;
+      return {
+        slot: s,
+        day: DAY_LABELS[s.dayId] ?? s.dayId,
+        time: session?.timeRange ?? '—',
+        event: `${session?.name ?? s.sessionId} — ${s.programType}`,
+        sub,
+      };
+    });
+
+  // Slots where this staff is covering for someone else
+  const coverageSlots = slots
+    .filter(s => s.substituteId === activeStaff?.id && s.weekIndex === 0)
+    .sort((a, b) => DAY_ORDER.indexOf(a.dayId) - DAY_ORDER.indexOf(b.dayId))
+    .map(s => {
+      const session = sessions.find(sess => sess.id === s.sessionId);
+      const original = staffList.find(st => st.id === s.therapistId);
+      return {
+        slot: s,
+        day: DAY_LABELS[s.dayId] ?? s.dayId,
+        time: session?.timeRange ?? '—',
+        event: `${session?.name ?? s.sessionId} — ${s.programType}`,
+        original,
+      };
+    });
 
   // Map clients supervised by active staff
   const staffClients = clients.filter(c => c.primaryTherapist === activeStaff.name);
@@ -112,6 +128,7 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
   // VIEW 1: Directory List of Staff
   if (viewMode === 'directory') {
     return (
+      <>
       <div id="staff-directory" className="space-y-6">
         
         {/* Metric summary top grid */}
@@ -139,13 +156,21 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
         {/* Action controls */}
         <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-3xs">
           <span className="text-xs font-bold text-slate-500 font-sans uppercase">Staff Directory Register</span>
-          <button
-            id="btn-trigger-onboard"
-            onClick={() => setViewMode('onboard')}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-sans font-semibold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add New Staff Member
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowTimeOff(true)}
+              className="border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 font-sans font-semibold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1.5 cursor-pointer transition-all"
+            >
+              <Calendar className="w-3.5 h-3.5" /> Approved Schedule Requests
+            </button>
+            <button
+              id="btn-trigger-onboard"
+              onClick={() => { setEditPrefill(undefined); setViewMode('onboard'); }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-sans font-semibold text-xs py-2 px-3.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add New Staff Member
+            </button>
+          </div>
         </div>
 
         {/* Directory table */}
@@ -250,243 +275,38 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
         </div>
 
       </div>
+
+      {showTimeOff && (
+        <TimeOffModal
+          staffList={staffList}
+          requests={timeOffRequests}
+          onAdd={req => setTimeOffRequests(prev => [...prev, req])}
+          onRemove={id => setTimeOffRequests(prev => prev.filter(r => r.id !== id))}
+          onClose={() => setShowTimeOff(false)}
+        />
+      )}
+      </>
     );
   }
 
   // VIEW 2: Onboard New Clinical Staff Form
   if (viewMode === 'onboard') {
     return (
-      <div id="onboard-clinical-staff-grid" className="space-y-6">
-        
-        {/* Back header navigation */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setViewMode('directory')}
-            className="flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-indigo-600 bg-white px-3.5 py-2 rounded-lg border border-slate-200 shadow-3xs cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Cancel and Back
-          </button>
-          
-          <span className="text-[10px] font-mono text-indigo-600 font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-md">
-            WORKFORCE ONBOARDING FORM
-          </span>
-        </div>
-
-        {/* Grid Form layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Left Columns - Inputs */}
-          <form onSubmit={handleCreateStaff} className="lg:col-span-2 space-y-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-            
-            <h3 className="font-display font-bold text-base text-slate-900 border-b border-slate-100 pb-3">
-              Add New Behavioral Health Provider
-            </h3>
-
-            {/* Part 1: Personal Identity */}
-            <div className="space-y-4 pt-1">
-              <h4 className="text-[11px] uppercase font-bold text-indigo-600 font-mono tracking-wider">1. Clinical Identity</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-slate-500 font-sans mb-1.5">Full Legal Name</label>
-                  <input
-                    id="onboard-name-input"
-                    type="text"
-                    required
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="e.g. Dr. Jane Foster"
-                    className="text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 transition-all bg-slate-50"
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-slate-500 font-sans mb-1.5">Role Designation</label>
-                  <select
-                    id="onboard-role-select"
-                    value={formRole}
-                    onChange={(e) => setFormRole(e.target.value)}
-                    className="text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-indigo-500 transition-all bg-slate-50 font-medium"
-                  >
-                    <option value="Lead Clinical Psychologist">Lead Clinical Psychologist</option>
-                    <option value="Senior Clinical Therapist">Senior Clinical Therapist</option>
-                    <option value="Licensed Family Therapist">Licensed Family Therapist</option>
-                    <option value="Clinical Case Counselor">Clinical Case Counselor</option>
-                    <option value="Psychiatric Registered Nurse">Psychiatric Registered Nurse</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Part 2: Clinical Assignment */}
-            <div className="space-y-4 border-t border-[#f1f5f9] pt-5">
-              <h4 className="text-[11px] uppercase font-bold text-indigo-600 font-mono tracking-wider">2. Licensing & Assignment</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-slate-500 font-sans mb-1.5">Professional Board Credentials</label>
-                  <input
-                    id="onboard-credentials-input"
-                    type="text"
-                    required
-                    value={formCredentials}
-                    onChange={(e) => setFormCredentials(e.target.value)}
-                    placeholder="e.g. PhD, LPC, LCSW-S"
-                    className="text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-slate-50"
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-slate-500 font-sans mb-1.5">Hire Date Assignment</label>
-                  <input
-                    id="onboard-hire-date-input"
-                    type="date"
-                    required
-                    value={formHireDate}
-                    onChange={(e) => setFormHireDate(e.target.value)}
-                    className="text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-slate-50 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Assignment Programs - Multi selection using custom checkboxes */}
-              <div>
-                <label className="text-xs font-semibold text-slate-500 font-sans block mb-2">Program Assignments</label>
-                <div className="flex flex-wrap gap-4 font-sans text-xs">
-                  {['EIOP', 'DIOP'].map((program) => (
-                    <label key={program} className="flex items-center gap-2 cursor-pointer p-2 border border-slate-150 rounded-lg bg-slate-50/50 hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={formPrograms.includes(program)}
-                        onChange={() => handleProgramCheckbox(program)}
-                        className="rounded border-slate-300 text-indigo-600 accent-indigo-600"
-                      />
-                      <span className="font-bold text-slate-700 font-mono text-[11px]">{program}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Part 3: Capacity management & Contacts */}
-            <div className="space-y-4 border-t border-[#f1f5f9] pt-5">
-              <h4 className="text-[11px] uppercase font-bold text-indigo-600 font-mono tracking-wider">3. Communication & Capacity Limit</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-slate-500 font-sans mb-1.5">Corporate Email Address</label>
-                  <input
-                    id="onboard-email-input"
-                    type="email"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    placeholder="jane.foster@clinicalops.org"
-                    className="text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-slate-50 font-mono"
-                  />
-                </div>
-
-                <div className="flex flex-col">
-                  <label className="text-xs font-semibold text-slate-500 font-sans mb-1.5">Direct Ringing/Phone Number</label>
-                  <input
-                    id="onboard-phone-input"
-                    type="text"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder="(512) 555-0103"
-                    className="text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-slate-50 font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Caseload limit slide */}
-              <div className="flex flex-col pt-3 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                <div className="flex justify-between items-center text-xs font-sans font-bold text-slate-700 mb-2">
-                  <span>Max Caseload Capacity Target</span>
-                  <span className="font-mono text-indigo-700 text-xs bg-white px-2 py-0.5 rounded border border-indigo-200 shadow-3xs">{formMaxCaseload} Clients Limit</span>
-                </div>
-                <input
-                  id="onboard-capacity-slider"
-                  type="range"
-                  min="0"
-                  max="40"
-                  value={formMaxCaseload}
-                  onChange={(e) => setFormMaxCaseload(Number(e.target.value))}
-                  className="w-full accent-indigo-600 cursor-pointer h-2 bg-slate-200 rounded-lg appearance-none"
-                />
-                <span className="text-[10px] text-slate-400 font-medium font-sans mt-2">
-                  This sets automated system thresholds for patient scheduling alerts. Recommended limit is 25 cases.
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-4 border-t border-[#f1f5f9]">
-              <button
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-sans font-semibold text-xs py-2.5 px-6 rounded-lg shadow-xs cursor-pointer"
-              >
-                Create Staff Member
-              </button>
-            </div>
-
-          </form>
-
-          {/* Right Column: Dynamic Preview Card */}
-          <div className="space-y-6">
-            
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between h-auto relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-indigo-600" />
-              
-              <div>
-                <h4 className="text-[11px] font-mono uppercase font-bold text-slate-400 tracking-wider mb-4">Profile Card Preview</h4>
-                
-                <div className="text-center py-6 border-b border-slate-100">
-                  <div className="w-16 h-16 bg-gradient-to-tr from-indigo-50 to-indigo-100 text-indigo-700 font-bold font-display text-xl rounded-full flex items-center justify-center mx-auto border-2 border-white shadow-3xs">
-                    {formName ? formName.split(' ').map(n=>n[0]).join('') : 'PV'}
-                  </div>
-                  <h3 className="font-display font-bold text-sm text-slate-800 mt-3">{formName || 'New Behavioral Professional'}</h3>
-                  <p className="text-[11px] text-slate-400 font-sans mt-0.5">{formRole}</p>
-                </div>
-
-                <div className="py-4 space-y-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Credentials</span>
-                    <span className="font-bold text-slate-700 font-mono text-[10px] uppercase">{formCredentials || 'None Declared'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Max Caseload</span>
-                    <span className="font-bold text-slate-700 font-mono text-[11px]">{formMaxCaseload} Patients</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Assigned Program</span>
-                    <span className="font-mono text-indigo-600 font-semibold text-[10px] uppercase truncate max-w-[120px]">{formPrograms.join(', ') || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans">Corporate Email</span>
-                    <span className="font-mono text-slate-600 truncate max-w-[140px] text-[10px]">{formEmail || 'Awaiting entry'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3.5 mt-4 text-[10px] font-sans text-amber-700 leading-normal flex gap-2">
-                <ShieldAlert className="w-4 h-4 shrink-0 text-amber-500 mt-0.5" />
-                <div>
-                  <span className="font-bold uppercase tracking-wider block">Operational Density Alert</span>
-                  Assigning programs without credentials verification triggers an automatic HR auditing checklist flag on launch.
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
+      <OnboardStaffForm
+        initialValues={editPrefill}
+        onCancel={() => setViewMode('directory')}
+        onSubmit={newStaff => {
+          onAddStaff(newStaff);
+          setViewMode('directory');
+        }}
+      />
     );
   }
 
   // VIEW 3: Dr. Aris Thorne Profile (Detailed screen 4)
   if (viewMode === 'profile') {
     return (
+      <>
       <div id="staff-profile-workspace" className="space-y-6">
         
         {/* Back and Edit */}
@@ -501,13 +321,15 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
           <button
             onClick={() => {
               // Edit Profile defaults to Onboarding form values for demonstration
-              setFormName(activeStaff.name);
-              setFormRole(activeStaff.role);
-              setFormCredentials(activeStaff.credentials);
-              setFormPrograms(activeStaff.assignedProgram);
-              setFormMaxCaseload(activeStaff.maxCaseload);
-              setFormEmail(activeStaff.email);
-              setFormPhone(activeStaff.phone);
+              setEditPrefill({
+                name: activeStaff.name,
+                role: activeStaff.role,
+                credentials: activeStaff.credentials,
+                programs: activeStaff.assignedProgram,
+                maxCaseload: activeStaff.maxCaseload,
+                email: activeStaff.email,
+                phone: activeStaff.phone,
+              });
               setViewMode('onboard');
             }}
             className="bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs py-2 px-4 rounded-lg cursor-pointer transition-colors"
@@ -562,7 +384,9 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
                   <h3 className="font-display font-bold text-base text-slate-900 leading-snug">Active Managed Caseload</h3>
                   <p className="text-xs text-slate-400 font-sans">Patients assigned directly to {activeStaff.name}</p>
                 </div>
-                <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-mono font-bold">{staffClients.length} Patients Active</span>
+                <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-mono font-bold">
+                  {staffClients.length} active / {clients.length} total
+                </span>
               </div>
 
               <div className="overflow-x-auto text-xs">
@@ -583,7 +407,7 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
                         <tr key={client.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="py-3 px-4 font-bold text-slate-800">{client.name}</td>
                           <td className="py-3 px-4 font-bold font-mono text-indigo-700">{client.program}</td>
-                          <td className="py-3 px-4 font-mono text-slate-400">{client.expectedDischargeDate}</td>
+                          <td className="py-3 px-4 font-mono text-slate-400">{estDischargeDate(client)}</td>
                           <td className="py-3 px-4">
                             <span className={`inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-full uppercase font-bold ${
                               todayAtt === 'Present' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-650'
@@ -619,18 +443,74 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
 
             {/* Weekly calendar Course schedule */}
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs">
-              <h3 className="font-display font-bold text-base text-slate-900 leading-snug mb-1">Weekly Course & Clinic Calendar</h3>
+              <div className="flex items-start justify-between mb-1">
+                <h3 className="font-display font-bold text-base text-slate-900 leading-snug">Weekly Course & Clinic Calendar</h3>
+                <div className="flex items-baseline gap-1 shrink-0 ml-4">
+                  <span className="font-display font-bold text-lg text-slate-800 leading-none">{weeklySchedule.length}</span>
+                  <span className="text-xs text-slate-400 font-sans leading-none">/ 20</span>
+                </div>
+              </div>
               <p className="text-xs text-slate-400 font-sans mb-4">Therapy panels, roundtables, and co-signature windows</p>
 
-              <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden font-sans">
-                {weeklySchedule.map((sched, idx) => (
-                  <div key={idx} className="p-3.5 hover:bg-slate-50/50 transition-colors flex justify-between items-center bg-white text-xs">
-                    <span className="font-bold text-slate-800 w-24 block">{sched.day}</span>
-                    <span className="font-mono text-indigo-650 bg-indigo-50/50 px-2.5 py-1 rounded border border-indigo-100 shrink-0 font-bold max-w-xs">{sched.time}</span>
-                    <span className="font-medium text-slate-500 flex-1 pl-4 truncate text-right">{sched.event}</span>
+              {weeklySchedule.length > 0 ? (
+                <div className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden font-sans">
+                  {weeklySchedule.map((sched) => (
+                    <div key={sched.slot.id} className="p-3.5 hover:bg-slate-50/50 transition-colors flex items-center gap-3 bg-white text-xs">
+                      <span className="font-bold text-slate-800 w-24 shrink-0">{sched.day}</span>
+                      <span className="font-mono text-indigo-650 bg-indigo-50/50 px-2.5 py-1 rounded border border-indigo-100 shrink-0 font-bold">{sched.time}</span>
+                      <span className="font-medium text-slate-500 flex-1 truncate">{sched.event}</span>
+
+                      {sched.sub ? (
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 px-2 py-1 rounded-lg font-mono text-[10px] font-bold">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                            Covered · {sched.sub.name.split(' ')[0]} {sched.sub.name.split(' ').slice(-1)[0]}
+                          </span>
+                          <button
+                            onClick={() => removeSub(sched.slot.id)}
+                            className="text-[10px] text-slate-400 hover:text-red-500 font-bold transition-colors px-1"
+                            title="Remove coverage"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => openSubModal(sched.slot)}
+                          className="shrink-0 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 px-2.5 py-1 rounded-lg transition-colors"
+                        >
+                          Set Cover
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="border border-slate-100 rounded-xl p-8 text-center text-xs text-slate-400 font-sans">
+                  No sessions assigned in the Program Schedule yet.
+                </div>
+              )}
+
+              {/* Coverage assignments — slots this staff is subbing for someone else */}
+              {coverageSlots.length > 0 && (
+                <div className="mt-5">
+                  <h4 className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-600 mb-2">
+                    Coverage Assignments
+                  </h4>
+                  <div className="divide-y divide-slate-100 border border-amber-100 rounded-xl overflow-hidden font-sans">
+                    {coverageSlots.map((sched) => (
+                      <div key={sched.slot.id} className="p-3.5 bg-amber-50/40 flex items-center gap-3 text-xs">
+                        <span className="font-bold text-slate-800 w-24 shrink-0">{sched.day}</span>
+                        <span className="font-mono text-amber-700 bg-amber-50 px-2.5 py-1 rounded border border-amber-100 shrink-0 font-bold">{sched.time}</span>
+                        <span className="font-medium text-slate-500 flex-1 truncate">{sched.event}</span>
+                        <span className="shrink-0 text-[10px] font-bold text-amber-700 font-mono">
+                          Sub for {sched.original?.name ?? 'Unknown'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
 
           </div>
@@ -688,6 +568,65 @@ export default function StaffView({ staffList, clients, onAddStaff, onSelectClie
         </div>
 
       </div>
+
+      {/* Sub coverage modal */}
+      {subModalSlot && (() => {
+        const session  = sessions.find(s => s.id === subModalSlot.sessionId);
+        const others   = staffList.filter(s => s.id !== subModalSlot.therapistId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl max-w-sm w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-display font-bold text-base text-slate-900">Set Coverage</h3>
+                <button onClick={() => setSubModalSlot(null)} className="p-1 rounded-full hover:bg-slate-100 text-slate-400">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-mono text-slate-600 mb-4">
+                <span className="font-bold text-indigo-600">{session?.name}</span>
+                {' · '}
+                <span>{DAY_LABELS[subModalSlot.dayId]}</span>
+                {' · '}
+                <span>{session?.timeRange}</span>
+              </div>
+
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                Covering Clinician
+              </label>
+              <select
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-indigo-600 focus:outline-none mb-5"
+                value={subPickedId}
+                onChange={e => setSubPickedId(e.target.value)}
+              >
+                {others.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.credentials})</option>
+                ))}
+              </select>
+
+              <p className="text-[10px] text-slate-400 font-sans mb-4">
+                This substitution will be recorded on the slot. Only one level of coverage is allowed — the covering clinician cannot be further subbed.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setSubModalSlot(null)}
+                  className="flex-1 py-2 border border-slate-200 text-slate-600 text-sm font-bold rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmSub}
+                  className="flex-1 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 shadow transition-colors"
+                >
+                  Confirm Coverage
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      </>
     );
   }
 
