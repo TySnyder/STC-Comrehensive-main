@@ -19,6 +19,7 @@ import {
   Award
 } from 'lucide-react';
 import { Client, Staff } from '../types';
+import { estDischargeDate } from '../utils/dcDateHelpers';
 
 interface DashboardViewProps {
   clients: Client[];
@@ -47,16 +48,17 @@ export default function DashboardView({ clients, staff, onNavigateToTab, onSelec
 
   // Calculations
   const totalClients = clients.length;
-  const activeClients = clients.filter(c => c.status !== 'Completed' && c.status !== 'Graduated');
+  const activeClients = clients.filter(c => c.status === 'Active');
   const countActive = activeClients.length;
   const presentTodayCount = clients.filter(c => c.attendanceHistory[0]?.status === 'Present').length;
-  const pendingAdmissionsCount = clients.filter(c => c.status === 'Upcoming').length;
+  const pendingAdmissionsCount = clients.filter(c => c.status === 'Pending Admit' || c.status === 'Inquiry').length;
   const expiringAuthsCount = clients.filter(c => c.riskFlag?.reason.toLowerCase().includes('auth') || c.riskFlag?.reason.toLowerCase().includes('expires')).length;
 
   // Let's filter clients for "Needs Attention" & "Upcoming Discharges"
   const needsAttentionClients = clients.filter(c => c.riskFlag);
   const upcomingDischarges = clients.filter(c => {
-    const discharge_ms = new Date(c.expectedDischargeDate).getTime();
+    if (c.status !== 'Active') return false;
+    const discharge_ms = new Date(estDischargeDate(c)).getTime();
     const today_ms = new Date('2026-06-15').getTime();
     const diff_days = (discharge_ms - today_ms) / (1000 * 3600 * 24);
     return diff_days > 0 && diff_days <= 14;
@@ -268,7 +270,7 @@ export default function DashboardView({ clients, staff, onNavigateToTab, onSelec
           <p className="text-xs text-slate-400 font-sans mb-4">Admissions slated for clinical assessment</p>
 
           <div className="space-y-3.5">
-            {clients.filter(c => c.status === 'Upcoming').slice(0, 3).map(client => (
+            {clients.filter(c => c.status === 'Pending Admit' || c.status === 'Inquiry').slice(0, 3).map(client => (
               <div 
                 key={client.id} 
                 onClick={() => onSelectClient(client)}
@@ -307,11 +309,11 @@ export default function DashboardView({ clients, staff, onNavigateToTab, onSelec
                   <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400">
                     <span className="bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-bold">{client.program}</span>
                     <span>•</span>
-                    <span>Target: {client.expectedDischargeDate}</span>
+                    <span>Target: {estDischargeDate(client)}</span>
                   </div>
                 </div>
                 <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                  client.status === 'Needs Packet' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                  client.status === 'Discharged' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'
                 }`}>
                   {client.status}
                 </span>

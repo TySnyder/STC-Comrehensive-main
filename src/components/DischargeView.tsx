@@ -19,24 +19,97 @@ import {
   AlertOctagon,
   ChevronRight
 } from 'lucide-react';
-import { Client, OperationalRisk } from '../types';
+import { Client, ClientStatus, Episode, OperationalRisk } from '../types';
+import {
+  getCurrentEpisode,
+  getPaperworkItems,
+  countOutstanding,
+  chaseDeadline,
+  PaperworkItem,
+} from '../utils/episodeHelpers';
+import { estDischargeDate } from '../utils/dcDateHelpers';
 
 interface DischargeViewProps {
   clients: Client[];
   risks: OperationalRisk[];
   onSelectClient: (client: Client) => void;
   onClearRisk: (id: string) => void;
+  onOpenDischarge: (client: Client) => void;
+  onReverseDischarge: (clientId: string) => void;
+  onReadmit: (clientId: string, admitDate: string) => void;
+  onUpdateEpisode: (clientId: string, episodeId: string, updates: Partial<Episode>) => void;
 }
 
-export default function DischargeView({ clients, risks, onSelectClient, onClearRisk }: DischargeViewProps) {
-  const [activeTab, setActiveTab] = useState<'Upcoming' | 'Needs Packet' | 'Completed' | 'Graduated'>('Needs Packet');
+const PAPERWORK_STATE_STYLES: Record<PaperworkItem['state'], string> = {
+  'not-sent': 'bg-slate-100 text-slate-500',
+  'sent': 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+  'chasing': 'bg-amber-100 text-amber-700 border border-amber-200',
+  'returned': 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+  'closed': 'bg-red-50 text-red-500 border border-red-100',
+  'n/a': 'bg-transparent text-slate-300',
+};
 
-  // Filter clients by active discharge status
+function PaperworkCell({
+  item,
+  onStamp,
+}: {
+  item: PaperworkItem;
+  onStamp: (field: keyof Episode) => void;
+}) {
+  if (item.state === 'n/a') return <span className="text-slate-300 font-mono">—</span>;
+
+  const label =
+    item.state === 'not-sent' ? 'Mark sent' :
+    item.state === 'sent'     ? `Sent ${item.sentAt}` :
+    item.state === 'chasing'  ? `Sent ${item.sentAt} · returned?` :
+    item.state === 'returned' ? `Returned ${item.returnedAt}` :
+    `Unreceived (chase closed)`;
+
+  const nextField: keyof Episode | null =
+    item.state === 'not-sent' ? item.sentField :
+    item.state === 'chasing' && item.returnedField ? item.returnedField :
+    null;
+
+  return (
+    <button
+      disabled={!nextField}
+      onClick={() => nextField && onStamp(nextField)}
+      title={nextField ? 'Click to stamp today' : undefined}
+      className={`font-mono text-[10px] font-bold px-2 py-1 rounded-md whitespace-nowrap ${PAPERWORK_STATE_STYLES[item.state]} ${
+        nextField ? 'cursor-pointer hover:opacity-75 transition-opacity' : 'cursor-default'
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+export default function DischargeView({
+  clients,
+  risks,
+  onSelectClient,
+  onClearRisk,
+  onOpenDischarge,
+  onReverseDischarge,
+  onReadmit,
+  onUpdateEpisode,
+}: DischargeViewProps) {
+  const [activeTab, setActiveTab] = useState<ClientStatus>('Active');
+  const [readmitTarget, setReadmitTarget] = useState<Client | null>(null);
+  const [readmitDate, setReadmitDate] = useState('');
+  const today = new Date().toISOString().slice(0, 10);
+
+  const confirmReadmit = () => {
+    if (!readmitTarget || !readmitDate) return;
+    onReadmit(readmitTarget.id, readmitDate);
+    setReadmitTarget(null);
+  };
+
+  // Filter clients by lifecycle status
   const tabClients = clients.filter(c => c.status === activeTab);
 
   // Quick stats calculations
-  const upcomingDischargesCount = clients.filter(c => c.status === 'Upcoming').length;
-  const packetsNeededCount = clients.filter(c => c.status === 'Needs Packet').length;
+  const packetsNeededCount = clients.filter(c => c.status === 'Discharged' && c.followUpNeeded).length;
   const avgStayDays = '24.2 Days';
   const authRiskRate = '14%';
 
@@ -60,8 +133,8 @@ export default function DischargeView({ clients, risks, onSelectClient, onClearR
             <Calendar className="w-5 h-5" />
           </div>
           <div>
-            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block">Upcoming Discharges</span>
-            <h3 className="text-xl font-bold text-slate-800 font-display mt-0.5">{clients.filter(c => c.status === 'Upcoming').length} Active</h3>
+            <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block">Active Clients</span>
+            <h3 className="text-xl font-bold text-slate-800 font-display mt-0.5">{clients.filter(c => c.status === 'Active').length} Active</h3>
           </div>
         </div>
 
@@ -201,7 +274,7 @@ export default function DischargeView({ clients, risks, onSelectClient, onClearR
         {/* Workspace tabs bar */}
         <div id="workspace-table-header" className="px-6 py-4 bg-[#f8fafc] border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex gap-2">
-            {(['Needs Packet', 'Upcoming', 'Completed', 'Graduated'] as const).map((tab) => (
+            {(['Inquiry', 'Pending Admit', 'Active', 'Discharged'] as const).map((tab) => (
               <button
                 key={tab}
                 id={`btn-tab-discharge-${tab.replace(' ', '-')}`}
@@ -223,6 +296,7 @@ export default function DischargeView({ clients, risks, onSelectClient, onClearR
         </div>
 
         {/* Client results dynamic table */}
+        {activeTab !== 'Discharged' ? (
         <div className="overflow-x-auto text-xs">
           <table className="w-full text-left">
             <thead>
@@ -237,24 +311,41 @@ export default function DischargeView({ clients, risks, onSelectClient, onClearR
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-150">
-              {tabClients.map((client) => (
+              {tabClients.map((client) => {
+                const episode = getCurrentEpisode(client);
+                return (
                 <tr key={client.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-3.5 px-6 font-bold text-slate-800">{client.name}</td>
+                  <td className="py-3.5 px-6 font-bold text-slate-800">
+                    {client.name}
+                    {episode.iopDcDate && !episode.stcDcDate && (
+                      <span className="ml-2 font-mono text-[9px] font-bold uppercase tracking-wider bg-sky-50 text-sky-600 border border-sky-200 px-1.5 py-0.5 rounded">
+                        IOP DC {episode.iopDcDate}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-3.5 px-6 font-bold font-mono text-[11px] text-indigo-700">{client.program}</td>
                   <td className="py-3.5 px-6 font-mono text-slate-450">{client.admissionDate}</td>
-                  <td className="py-3.5 px-6 font-mono text-slate-450">{client.expectedDischargeDate}</td>
+                  <td className="py-3.5 px-6 font-mono text-slate-450">{estDischargeDate(client)}</td>
                   <td className="py-3.5 px-6 font-medium text-slate-700">{client.primaryTherapist}</td>
                   <td className="py-3.5 px-6">
                     <span className={`inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                      client.followUpNeeded 
+                      client.followUpNeeded
                         ? 'bg-amber-150 text-amber-600 border border-amber-200'
                         : 'bg-slate-100 text-slate-500'
                     }`}>
                       {client.followUpNeeded ? 'Co-Signature Needed' : 'Vouched Complete'}
                     </span>
                   </td>
-                  <td className="py-3.5 px-6 text-right">
-                    <button 
+                  <td className="py-3.5 px-6 text-right whitespace-nowrap">
+                    {activeTab === 'Active' && (
+                      <button
+                        onClick={() => onOpenDischarge(client)}
+                        className="text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer inline-flex items-center gap-1 mr-4"
+                      >
+                        <UserX className="w-3 h-3" /> Discharge
+                      </button>
+                    )}
+                    <button
                       onClick={() => onSelectClient(client)}
                       className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5"
                     >
@@ -262,7 +353,8 @@ export default function DischargeView({ clients, risks, onSelectClient, onClearR
                     </button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
 
               {tabClients.length === 0 && (
                 <tr>
@@ -274,6 +366,116 @@ export default function DischargeView({ clients, risks, onSelectClient, onClearR
             </tbody>
           </table>
         </div>
+        ) : (
+        /* Discharged tab — paperwork tracker (mirrors Admin Discharges workbook) */
+        <div className="overflow-x-auto text-xs">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-[#fafafa] border-b border-slate-200 text-slate-450 text-[10px] font-bold font-mono uppercase tracking-wider">
+                <th className="py-3 px-6">Client Name</th>
+                <th className="py-3 px-4">Admit</th>
+                <th className="py-3 px-4">IOP DC</th>
+                <th className="py-3 px-4">STC DC</th>
+                <th className="py-3 px-4">DC Status</th>
+                <th className="py-3 px-4">Grad Cert</th>
+                <th className="py-3 px-4">Exit Interview</th>
+                <th className="py-3 px-4">DC Form</th>
+                <th className="py-3 px-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-150">
+              {tabClients.map((client) => {
+                const episode = getCurrentEpisode(client);
+                const items = getPaperworkItems(episode, today);
+                const outstanding = countOutstanding(episode, today);
+                const stamp = (field: keyof Episode) =>
+                  onUpdateEpisode(client.id, episode.id, { [field]: today });
+                const cell = (key: PaperworkItem['key']) => {
+                  const item = items.find(i => i.key === key);
+                  return item ? <PaperworkCell item={item} onStamp={stamp} /> : <span className="text-slate-300 font-mono">—</span>;
+                };
+                return (
+                  <tr key={client.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3.5 px-6 font-bold text-slate-800">
+                      {client.name}
+                      {episode.episodeNumber > 1 && (
+                        <span
+                          className="ml-2 font-mono text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded"
+                          title={`Episode ${episode.episodeNumber} — readmitted client (BestNotes "${client.name} ${episode.episodeNumber}")`}
+                        >
+                          Ep {episode.episodeNumber}
+                        </span>
+                      )}
+                      {episode.graduated && (
+                        <span className="ml-2 font-mono text-[9px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-600 border border-emerald-200 px-1.5 py-0.5 rounded">Grad</span>
+                      )}
+                      {outstanding > 0 && episode.stcDcDate && (
+                        <span
+                          className="ml-2 font-mono text-[9px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded"
+                          title={`Chase until ${chaseDeadline(episode.stcDcDate)}`}
+                        >
+                          {outstanding} outstanding
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-4 font-mono text-slate-450 whitespace-nowrap">{episode.admitDate}</td>
+                    <td className="py-3.5 px-4 font-mono text-slate-450 whitespace-nowrap">{episode.iopDcDate ?? '—'}</td>
+                    <td className="py-3.5 px-4 font-mono text-slate-450 whitespace-nowrap">{episode.stcDcDate ?? '—'}</td>
+                    <td className="py-3.5 px-4">
+                      <div className="flex flex-wrap gap-1">
+                        {(episode.dcStatus ?? []).map(s => (
+                          <span key={s} className={`font-mono text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                            s === 'Approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                            : s === 'ASA'    ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            :                  'bg-red-50 text-red-500 border-red-100'
+                          }`}>
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4">{cell('gradCert')}</td>
+                    <td className="py-3.5 px-4">{cell('exitInterview')}</td>
+                    <td className="py-3.5 px-4">{cell('dcForm')}</td>
+                    <td className="py-3.5 px-6 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => onReverseDischarge(client.id)}
+                        title="Void this discharge — client returns to Active; paperwork stamps are cleared"
+                        className="text-slate-400 hover:text-red-600 font-bold hover:underline cursor-pointer mr-4"
+                      >
+                        Reverse DC
+                      </button>
+                      {episode.stcDcDate && (
+                        <button
+                          onClick={() => { setReadmitTarget(client); setReadmitDate(today); }}
+                          title="Client is returning — start a new episode"
+                          className="text-emerald-600 hover:text-emerald-800 font-bold hover:underline cursor-pointer mr-4"
+                        >
+                          Readmit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => onSelectClient(client)}
+                        className="text-indigo-600 hover:text-indigo-800 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5"
+                      >
+                        Inspect <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {tabClients.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center text-slate-400 py-12">
+                    No discharged clients on file.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        )}
       </div>
 
       {/* 4. High Severity Operational Risk Flags table */}
@@ -340,6 +542,43 @@ export default function DischargeView({ clients, risks, onSelectClient, onClearR
           </table>
         </div>
       </div>
+
+      {/* Readmit confirmation — new episode, back to Active */}
+      {readmitTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-sm font-bold text-slate-800">Readmit {readmitTarget.name}</h3>
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              Starts episode {getCurrentEpisode(readmitTarget).episodeNumber + 1} and returns the
+              client to Active. Prior episodes and paperwork are kept.
+            </p>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block mt-4 mb-1">
+              New admit date *
+            </label>
+            <input
+              type="date"
+              value={readmitDate}
+              onChange={e => setReadmitDate(e.target.value)}
+              className="w-full text-xs border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => setReadmitTarget(null)}
+                className="text-xs px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReadmit}
+                disabled={!readmitDate}
+                className="text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold transition-colors"
+              >
+                Readmit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

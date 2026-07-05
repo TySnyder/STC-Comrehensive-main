@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Staff, Client, ClinicalNote, OperationalRisk, IndSession, CensusEntry, InsuranceBillingNote, ProgramBlock, VirtualMode } from './types';
+import { Staff, Client, ClinicalNote, OperationalRisk, IndSession, CensusEntry, InsuranceBillingNote, ProgramBlock, VirtualMode, SessionType, GridSlot } from './types';
 
 export const INITIAL_STAFF: Staff[] = [
   {
@@ -49,7 +49,7 @@ export const INITIAL_STAFF: Staff[] = [
     phone: '(512) 555-0814',
     attendanceStatus: 'Present',
     status: 'Active',
-    photo: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=200&h=200'
+    photo: 'https://i.pravatar.cc/200?img=47'
   },
   {
     id: 'staff-4',
@@ -106,8 +106,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'EIOP',
     location: 'SF',
     admissionDate: '2026-05-10',
-    expectedDischargeDate: '2026-06-28',
-    status: 'Needs Packet',
+    status: 'Active',
     followUpNeeded: true,
     insurance: 'Blue Cross Blue Shield',
     age: 34,
@@ -119,6 +118,7 @@ export const INITIAL_CLIENTS: Client[] = [
       daysPending: 3
     },
     primaryTherapist: 'Dr. Aris Thorne',
+    uaFrequency: 'twice-weekly',
     attendanceHistory: [
       { date: '2026-06-15', block: 'A', status: 'Present' },
       { date: '2026-06-15', block: 'B', status: 'Present' },
@@ -142,8 +142,18 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'EIOP',
     location: 'SF',
     admissionDate: '2026-05-02',
-    expectedDischargeDate: '2026-06-15',
-    status: 'Completed',
+    status: 'Discharged',
+    episodes: [
+      {
+        id: 'client-5-ep1',
+        episodeNumber: 1,
+        admitDate: '2026-05-02',
+        stcDcDate: '2026-06-15',
+        dcStatus: ['Approved'],
+        exitInterviewSentAt: '2026-06-16',
+        dcFormSentAt: '2026-06-16',
+      }
+    ],
     followUpNeeded: true,
     insurance: 'Blue Cross Blue Shield',
     age: 22,
@@ -169,8 +179,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'EIOP',
     location: 'ABQ',
     admissionDate: '2026-05-22',
-    expectedDischargeDate: '2026-07-02',
-    status: 'Needs Packet',
+    status: 'Active',
     followUpNeeded: true,
     insurance: 'Cigna',
     age: 27,
@@ -201,8 +210,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'EIOP',
     location: 'ABQ',
     admissionDate: '2026-05-30',
-    expectedDischargeDate: '2026-07-15',
-    status: 'Upcoming',
+    status: 'Pending Admit',
     followUpNeeded: false,
     insurance: 'Aetna',
     age: 50,
@@ -229,8 +237,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'DIOP',
     location: 'SF',
     admissionDate: '2026-05-15',
-    expectedDischargeDate: '2026-06-18',
-    status: 'Needs Packet',
+    status: 'Active',
     followUpNeeded: true,
     insurance: 'Aetna',
     age: 28,
@@ -242,6 +249,8 @@ export const INITIAL_CLIENTS: Client[] = [
       daysPending: 5
     },
     primaryTherapist: 'Elena Rostova',
+    uaFrequency: 'twice-weekly',
+    uaNote: 'Court-ordered testing — results faxed to PO',
     attendanceHistory: [
       { date: '2026-06-15', block: 'A', status: 'Present' },
       { date: '2026-06-15', block: 'B', status: 'Present' },
@@ -261,14 +270,30 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'DIOP',
     location: 'SF',
     admissionDate: '2026-04-20',
-    expectedDischargeDate: '2026-06-12',
-    status: 'Completed',
+    status: 'Discharged',
+    episodes: [
+      {
+        id: 'client-3-ep1',
+        episodeNumber: 1,
+        admitDate: '2026-04-20',
+        iopDcDate: '2026-05-29',
+        stcDcDate: '2026-06-12',
+        dcStatus: ['Approved'],
+        graduated: true,
+        gradCertSentAt: '2026-06-13',
+        exitInterviewSentAt: '2026-06-13',
+        exitInterviewReturnedAt: '2026-06-19',
+        dcFormSentAt: '2026-06-13',
+        dcFormReturnedAt: '2026-06-17',
+      }
+    ],
     followUpNeeded: false,
     insurance: 'Cigna',
     age: 45,
     gender: 'Female',
     diagnoses: ['Bipolar II Disorder', 'Borderline Personality Traits'],
     primaryTherapist: 'Dr. Aris Thorne',
+    uaFrequency: 'monthly',
     attendanceHistory: [
       { date: '2026-06-12', block: 'A', status: 'Present' },
       { date: '2026-06-12', block: 'B', status: 'Present' },
@@ -288,13 +313,13 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'DIOP',
     location: 'ABQ',
     admissionDate: '2026-03-10',
-    expectedDischargeDate: '2026-06-25',
-    status: 'Upcoming',
+    status: 'Pending Admit',
     followUpNeeded: false,
     insurance: 'UnitedHealthcare',
     age: 39,
     gender: 'Male',
     diagnoses: ['Severe PTSD', 'Alcohol Use Disorder'],
+    uaFrequency: 'weekly',
     riskFlag: {
       severity: 'Medium',
       reason: 'Incomplete Intake Assessment signatures from secondary therapist',
@@ -320,8 +345,19 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'DIOP',
     location: 'ABQ',
     admissionDate: '2026-04-18',
-    expectedDischargeDate: '2026-06-20',
-    status: 'Graduated',
+    status: 'Discharged',
+    episodes: [
+      {
+        id: 'client-6-ep1',
+        episodeNumber: 1,
+        admitDate: '2026-04-18',
+        stcDcDate: '2026-05-25',
+        dcStatus: ['ASA', 'Admin DC'],
+        exitInterviewSentAt: '2026-05-26',
+        dcFormSentAt: '2026-05-26',
+        note: 'LVM 6/2, emailed 6/9 — no response',
+      }
+    ],
     followUpNeeded: false,
     insurance: 'Humana',
     age: 31,
@@ -348,8 +384,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'DOP',
     location: 'SF',
     admissionDate: '2026-05-28',
-    expectedDischargeDate: '2026-07-10',
-    status: 'Needs Packet',
+    status: 'Active',
     followUpNeeded: false,
     insurance: 'Aetna',
     age: 36,
@@ -370,8 +405,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'DOP',
     location: 'ABQ',
     admissionDate: '2026-06-01',
-    expectedDischargeDate: '2026-07-15',
-    status: 'Upcoming',
+    status: 'Pending Admit',
     followUpNeeded: false,
     insurance: 'Cigna',
     age: 42,
@@ -393,8 +427,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'EOP',
     location: 'SF',
     admissionDate: '2026-06-03',
-    expectedDischargeDate: '2026-07-18',
-    status: 'Upcoming',
+    status: 'Pending Admit',
     followUpNeeded: false,
     insurance: 'UnitedHealthcare',
     age: 29,
@@ -415,8 +448,7 @@ export const INITIAL_CLIENTS: Client[] = [
     program: 'EOP',
     location: 'ABQ',
     admissionDate: '2026-05-30',
-    expectedDischargeDate: '2026-07-08',
-    status: 'Needs Packet',
+    status: 'Active',
     followUpNeeded: true,
     insurance: 'Blue Cross Blue Shield',
     age: 55,
@@ -437,6 +469,7 @@ export const INITIAL_RISKS: OperationalRisk[] = [
   {
     id: 'risk-1',
     severity: 'High',
+    clientId: 'client-1',
     entityName: 'Sarah Jenkins',
     flagReason: 'Auth Expires in 2 Days - Awaiting Clinical Summary validation',
     daysPending: 3
@@ -444,6 +477,7 @@ export const INITIAL_RISKS: OperationalRisk[] = [
   {
     id: 'risk-2',
     severity: 'High',
+    clientId: 'client-2',
     entityName: 'Liam Sterling',
     flagReason: 'Missing Guardianship/Representative Signature on Release of Info',
     daysPending: 5
@@ -451,6 +485,7 @@ export const INITIAL_RISKS: OperationalRisk[] = [
   {
     id: 'risk-3',
     severity: 'Medium',
+    clientId: 'client-4',
     entityName: 'Ethan Hunt',
     flagReason: 'Incomplete Intake Assessment signatures from secondary therapist',
     daysPending: 2
@@ -458,6 +493,7 @@ export const INITIAL_RISKS: OperationalRisk[] = [
   {
     id: 'risk-4',
     severity: 'Low',
+    clientId: 'client-7',
     entityName: 'Olivia Chen',
     flagReason: 'Physical Exam copy missing from client electronic intake file',
     daysPending: 8
@@ -664,6 +700,36 @@ export const INITIAL_CENSUS_ENTRIES: CensusEntry[] = [
 export const INITIAL_INSURANCE_BILLING_NOTES: InsuranceBillingNote[] = [
   { clientId: 'client-1', weekStart: '2026-06-23', notes: 'Auth renewed 6/23 through 7/31. Confirm claim submission by EOW.' },
   { clientId: 'client-4', weekStart: '2026-06-23', notes: 'UHC pending review — follow up Thursday re: authorization extension.' },
+];
+
+export const INITIAL_SESSIONS: SessionType[] = [
+  { id: 's1', name: 'DIOP', timeRange: '08:00 – 12:00' },
+  { id: 's2', name: 'DOP',  timeRange: '12:30 – 16:30' },
+  { id: 's3', name: 'EIOP', timeRange: '17:00 – 21:00' },
+  { id: 's4', name: 'EOP',  timeRange: '17:00 – 21:00' },
+];
+
+export const INITIAL_SLOTS: GridSlot[] = [
+  { id: 's1-W0-MON', sessionId: 's1', dayId: 'MON', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's1-W0-TUE', sessionId: 's1', dayId: 'TUE', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's1-W0-WED', sessionId: 's1', dayId: 'WED', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's1-W0-THU', sessionId: 's1', dayId: 'THU', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's1-W0-FRI', sessionId: 's1', dayId: 'FRI', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's2-W0-MON', sessionId: 's2', dayId: 'MON', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's2-W0-TUE', sessionId: 's2', dayId: 'TUE', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's2-W0-WED', sessionId: 's2', dayId: 'WED', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's2-W0-THU', sessionId: 's2', dayId: 'THU', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's2-W0-FRI', sessionId: 's2', dayId: 'FRI', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's3-W0-MON', sessionId: 's3', dayId: 'MON', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's3-W0-TUE', sessionId: 's3', dayId: 'TUE', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's3-W0-WED', sessionId: 's3', dayId: 'WED', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's3-W0-THU', sessionId: 's3', dayId: 'THU', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's3-W0-FRI', sessionId: 's3', dayId: 'FRI', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's4-W0-MON', sessionId: 's4', dayId: 'MON', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's4-W0-TUE', sessionId: 's4', dayId: 'TUE', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's4-W0-WED', sessionId: 's4', dayId: 'WED', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's4-W0-THU', sessionId: 's4', dayId: 'THU', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
+  { id: 's4-W0-FRI', sessionId: 's4', dayId: 'FRI', weekIndex: 0, therapistId: null, programType: 'CBT Intensive' },
 ];
 
 export const SYSTEM_CONNECTIONS = [

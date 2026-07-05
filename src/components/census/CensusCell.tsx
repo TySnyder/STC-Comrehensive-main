@@ -1,79 +1,171 @@
-import React, { useRef } from 'react';
-import { Clock, Home, Car } from 'lucide-react';
-import { CensusEntry, ProgramBlock } from '../../types';
-import { BLOCK_TAG } from './blockStyles';
+import React from 'react';
+import { Clock, User, Home, Car } from 'lucide-react';
+import { CensusEntry, ProgramBlock, VirtualMode } from '../../types';
 
 interface CensusCellProps {
-  block: ProgramBlock;
-  entry: CensusEntry | null;
-  onClick: (rect: DOMRect) => void;
+  block:    ProgramBlock;
+  entry:    CensusEntry | null;
+  disabled: boolean;
+  onUpdate: (updates: Partial<CensusEntry>) => void;
+  onRemove?: () => void;
 }
 
-function statusLabel(entry: CensusEntry | null): string {
-  if (!entry || entry.status === null) return '—';
-  if (entry.status === 'Present') return 'Present';
-  if (entry.status === 'Special') return entry.specialCode ?? 'Special';
-  if (entry.status === 'Absent') return entry.excused ? 'Excused' : 'Unexcused';
-  return '—';
-}
+export default function CensusCell({ block, entry, disabled, onUpdate, onRemove }: CensusCellProps) {
+  const status      = entry?.status      ?? null;
+  const excused     = entry?.excused     ?? false;
+  const tardy       = entry?.tardy       ?? false;
+  const virtualMode = entry?.virtualMode ?? 'none';
+  const specialCode = entry?.specialCode;
 
-function dotClass(entry: CensusEntry | null): string {
-  if (!entry || entry.status === null) return 'bg-slate-200';
-  if (entry.status === 'Present') return 'bg-emerald-500';
-  if (entry.status === 'Special') return 'bg-slate-400';
-  if (entry.status === 'Absent') return entry.excused ? 'bg-amber-400' : 'bg-red-500';
-  return 'bg-slate-200';
-}
+  const isPresent = status === 'Present';
+  const isAbsent  = status === 'Absent';
 
-function statusTextClass(entry: CensusEntry | null): string {
-  if (!entry || entry.status === null) return 'text-slate-300';
-  if (entry.status === 'Present') return 'text-slate-700';
-  if (entry.status === 'Special') return 'text-slate-500';
-  if (entry.status === 'Absent') return entry.excused ? 'text-amber-600' : 'text-red-600';
-  return 'text-slate-300';
-}
-
-export default function CensusCell({ block, entry, onClick }: CensusCellProps) {
-  const ref = useRef<HTMLButtonElement>(null);
-
-  const handleClick = () => {
-    if (ref.current) onClick(ref.current.getBoundingClientRect());
+  // ── Status toggle: null → Present → Absent → null ──
+  const toggleStatus = () => {
+    if (disabled) return;
+    if (!status)      onUpdate({ status: 'Present', excused: false });
+    else if (isPresent) onUpdate({ status: 'Absent',  tardy: false, virtualMode: 'none' });
+    else                onUpdate({ status: null });
   };
 
+  // ── * / L / D cycle in top-left corner ──
+  const cycleSpecial = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled) return;
+    if (!specialCode)        onUpdate({ specialCode: 'L' });
+    else if (specialCode === 'L') onUpdate({ specialCode: 'D' });
+    else                         onUpdate({ specialCode: undefined });
+  };
+
+  const toggleTardy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || !isPresent) return;
+    onUpdate({ tardy: !tardy });
+  };
+
+  const cycleVirtual = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || !isPresent) return;
+    const next: VirtualMode =
+      virtualMode === 'none' ? 'residence' : virtualMode === 'residence' ? 'away' : 'none';
+    onUpdate({ virtualMode: next });
+  };
+
+  const setExcused = (val: boolean) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || !isAbsent) return;
+    onUpdate({ excused: val });
+  };
+
+  // ── Styling ──
+  const bgBorder = disabled
+    ? 'bg-slate-50 border-slate-100'
+    : isPresent
+    ? 'bg-emerald-50 border-emerald-200 hover:border-emerald-300'
+    : isAbsent
+    ? 'bg-red-50 border-red-200 hover:border-red-300'
+    : 'bg-white border-slate-200 border-dashed hover:border-indigo-300 hover:bg-indigo-50/30';
+
+  const statusText =
+    isPresent ? 'Present' :
+    isAbsent  ? 'Absent'  : '—';
+
+  const statusColor = disabled
+    ? 'text-slate-300'
+    : isPresent ? 'text-emerald-600'
+    : isAbsent  ? 'text-red-500'
+    :             'text-slate-300';
+
+  const blockColor = disabled ? 'text-slate-300' : 'text-slate-400';
+  const LocationIcon = virtualMode === 'away' ? Car : virtualMode === 'residence' ? Home : User;
+  const locationTitle =
+    virtualMode === 'none' ? 'In person — click for virtual (home)' :
+    virtualMode === 'residence' ? 'Virtual — at residence — click for virtual (away)' :
+    'Virtual — away from residence — click for in person';
+
   return (
-    <button
-      ref={ref}
-      onClick={handleClick}
-      className="w-full flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors text-left group"
-    >
-      {/* Block tag */}
-      <span className={`text-[8px] font-mono font-bold px-1 py-0.5 rounded uppercase shrink-0 leading-none ${BLOCK_TAG[block]}`}>
+    <div className={`relative w-full rounded-xl border transition-all select-none ${bgBorder}`}>
+
+      {/* ── Remove button (IND only) ── */}
+      {onRemove && (
+        <button
+          onClick={e => { e.stopPropagation(); onRemove(); }}
+          title="Remove this session"
+          className="absolute top-1 right-1.5 w-4 h-4 flex items-center justify-center z-10 text-slate-300 hover:text-red-400 transition-colors"
+        >
+          <span className="text-[10px] font-bold leading-none">×</span>
+        </button>
+      )}
+
+      {/* ── * / L / D modifier ── */}
+      <button
+        onClick={cycleSpecial}
+        disabled={disabled}
+        title={!specialCode ? 'Mark L (Last Day) or D (Discharged)' : specialCode === 'L' ? 'Last Day — click for Discharged' : 'Discharged — click to clear'}
+        className="absolute top-1.5 left-2 w-4 h-4 flex items-center justify-center z-10"
+      >
+        <span
+          className={`text-[10px] font-bold font-mono leading-none ${
+            !specialCode  ? 'text-slate-400'  :
+            specialCode === 'L' ? 'text-blue-500' : 'text-slate-900'
+          }`}
+          style={!specialCode ? { opacity: 0.18 } : {}}
+        >
+          {specialCode ?? '*'}
+        </span>
+      </button>
+
+      {/* ── Block label ── */}
+      <p className={`text-[9px] font-mono font-bold uppercase tracking-widest text-center pt-2.5 pb-0.5 ${blockColor}`}>
         {block}
-      </span>
+      </p>
 
-      {/* Status dot */}
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotClass(entry)}`} />
+      {/* ── Status (clickable) ── */}
+      <button
+        onClick={toggleStatus}
+        disabled={disabled}
+        className={`w-full text-center pb-1 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        <span className={`text-[1.05rem] font-display font-bold leading-none ${statusColor}`}>
+          {statusText}
+        </span>
+      </button>
 
-      {/* Status label */}
-      <span className={`text-[10px] font-medium truncate flex-1 ${statusTextClass(entry)}`}>
-        {statusLabel(entry)}
-      </span>
+      {/* ── Divider ── */}
+      <div className={`border-t mx-3 mb-2 ${disabled ? 'border-slate-100' : 'border-slate-200'}`} />
 
-      {/* Badges */}
-      {entry?.tardy && (
-        <Clock className="w-2.5 h-2.5 text-amber-500 shrink-0" />
-      )}
-      {entry?.virtualMode === 'residence' && (
-        <Home className="w-2.5 h-2.5 text-blue-400 shrink-0" />
-      )}
-      {entry?.virtualMode === 'away' && (
-        <Car className="w-2.5 h-2.5 text-blue-400 shrink-0" />
-      )}
-
-      {/* Auto-fill indicator */}
-      {entry?.autoFilled && (
-        <span className="text-[7px] font-mono text-slate-300 shrink-0 leading-none">auto</span>
-      )}
-    </button>
+      {/* ── Bottom controls ── */}
+      <div className="px-3 pb-2">
+        {disabled ? (
+          <p className="text-[9px] font-mono text-slate-200 text-center">upcoming</p>
+        ) : isPresent ? (
+          <div className="flex items-center justify-center gap-5">
+            <button onClick={toggleTardy} title={tardy ? 'Remove tardy' : 'Mark tardy'}>
+              <Clock className={`w-4 h-4 transition-colors ${tardy ? 'text-amber-500' : 'text-slate-300 hover:text-slate-400'}`} />
+            </button>
+            <button onClick={cycleVirtual} title={locationTitle}>
+              <LocationIcon className={`w-4 h-4 transition-colors ${virtualMode !== 'none' ? 'text-blue-400' : 'text-emerald-500 hover:text-emerald-600'}`} />
+            </button>
+          </div>
+        ) : isAbsent ? (
+          <div className="flex bg-slate-100 rounded-full p-0.5 gap-0.5">
+            <button
+              onClick={setExcused(false)}
+              className={`flex-1 text-[8px] font-bold font-mono px-1 py-1 rounded-full uppercase leading-none transition-all ${!excused ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Unexcused
+            </button>
+            <button
+              onClick={setExcused(true)}
+              className={`flex-1 text-[8px] font-bold font-mono px-1 py-1 rounded-full uppercase leading-none transition-all ${excused ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Excused
+            </button>
+          </div>
+        ) : (
+          <p className="text-[9px] font-mono text-slate-300 text-center">tap to record</p>
+        )}
+      </div>
+    </div>
   );
 }

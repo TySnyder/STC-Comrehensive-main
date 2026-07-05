@@ -16,6 +16,7 @@ import {
   Calendar,
   AlertTriangle,
   CalendarDays,
+  FlaskConical,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,6 +31,8 @@ export default function Sidebar({ currentTab, setTab, openNoteModal }: SidebarPr
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
     { id: 'census', label: 'Weekly Census', icon: CalendarDays },
+    { id: 'ua', label: 'UA Tracking', icon: FlaskConical },
+    { id: 'schedule', label: 'Program Schedule', icon: Calendar },
     { id: 'discharge', label: 'Discharge Planning', icon: TrendingUp },
     { id: 'reports', label: 'Clinical Analytics', icon: FileSpreadsheet },
     { id: 'staff', label: 'Staff Management', icon: Activity },
@@ -39,18 +42,13 @@ export default function Sidebar({ currentTab, setTab, openNoteModal }: SidebarPr
   return (
     <aside id="portal-sidebar" className="w-68 bg-white border-r border-[#e2e8f0] flex flex-col h-screen sticky top-0 shrink-0">
       {/* Branding Header Area */}
-      <div id="sidebar-logo-area" className="p-6 border-b border-[#f1f5f9] flex flex-col gap-1.5 shrink-0 bg-[#f8fafc]/50">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-            ST
-          </div>
-          <span className="font-display font-bold text-base tracking-tight text-slate-800">
-            STC Operations Portal
-          </span>
-        </div>
-        <p className="text-[10px] font-mono tracking-wider text-indigo-600 uppercase font-bold">
-          Behavioral Health
-        </p>
+      <div id="sidebar-logo-area" className="px-5 py-4 border-b border-[#f1f5f9] flex flex-col gap-1.5 shrink-0 bg-[#f8fafc]/50">
+        <img
+          src="/stc-logo-horizontal-v2.webp"
+          alt="Solutions Treatment Center"
+          className="h-[60px] w-auto object-contain"
+        />
+
       </div>
 
       {/* Navigation Items */}

@@ -1,14 +1,7 @@
-import React, { useState } from 'react';
-import { Clock, Video, Home, Car, ChevronDown } from 'lucide-react';
+import React from 'react';
+import { Clock, User, Home, Car } from 'lucide-react';
 import { CensusEntry, ProgramBlock, VirtualMode, SpecialCode } from '../../types';
 import { BLOCK_TAG, BLOCK_HEADER_BG } from './blockStyles';
-
-const SPECIAL_CODES: { code: SpecialCode; label: string }[] = [
-  { code: 'L', label: 'Last Day' },
-  { code: 'D', label: 'Discharge Date' },
-  { code: 'H', label: 'Holiday' },
-  { code: 'C', label: 'Closed' },
-];
 
 interface CellCardProps {
   block: ProgramBlock;
@@ -17,7 +10,6 @@ interface CellCardProps {
 }
 
 export default function CellCard({ block, entry, onUpdate }: CellCardProps) {
-  const [showSpecial, setShowSpecial] = useState(false);
 
   const status = entry?.status ?? null;
   const excused = entry?.excused ?? false;
@@ -42,11 +34,11 @@ export default function CellCard({ block, entry, onUpdate }: CellCardProps) {
     onUpdate({ virtualMode: next });
   };
 
-  const VirtualIcon = virtualMode === 'residence' ? Home : virtualMode === 'away' ? Car : Video;
-  const virtualTitle =
-    virtualMode === 'none' ? 'In person (click to mark virtual)' :
-    virtualMode === 'residence' ? 'Virtual — at residence (click to change)' :
-    'Virtual — away from residence (click to change)';
+  const LocationIcon = virtualMode === 'residence' ? Home : virtualMode === 'away' ? Car : User;
+  const locationTitle =
+    virtualMode === 'none' ? 'In person — click for virtual (home)' :
+    virtualMode === 'residence' ? 'Virtual — at residence — click for virtual (away)' :
+    'Virtual — away from residence — click for in person';
 
   const headerBg = isPresent ? 'bg-emerald-50' : isAbsent ? 'bg-red-50' : isSpecial ? 'bg-slate-100' : BLOCK_HEADER_BG[block];
   const statusColor = isPresent ? 'text-emerald-600' : isAbsent ? 'text-red-500' : isSpecial ? 'text-slate-600' : 'text-slate-300';
@@ -55,9 +47,28 @@ export default function CellCard({ block, entry, onUpdate }: CellCardProps) {
     <div className="w-52 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
       {/* Tinted header with block label + status toggle */}
       <div className={`px-5 pt-3 pb-4 ${headerBg} transition-colors`}>
-        <span className={`text-[9px] font-mono font-bold uppercase tracking-widest ${BLOCK_TAG[block]} px-1.5 py-0.5 rounded`}>
-          {block}
-        </span>
+        <div className="flex items-start justify-between">
+          <span className={`text-[9px] font-mono font-bold uppercase tracking-widest ${BLOCK_TAG[block]} px-1.5 py-0.5 rounded`}>
+            {block}
+          </span>
+          {/* D / L corner badges */}
+          <div className="flex gap-1">
+            {(['D', 'L'] as SpecialCode[]).map(code => (
+              <button
+                key={code}
+                onClick={() => onUpdate({ status: 'Special', specialCode: code, tardy: false, virtualMode: 'none' })}
+                title={code === 'D' ? 'Discharge Date' : 'Last Day'}
+                className={`text-[9px] font-mono font-bold w-5 h-5 rounded flex items-center justify-center transition-all ${
+                  isSpecial && entry?.specialCode === code
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-white/60 text-slate-400 hover:text-slate-600 hover:bg-white'
+                }`}
+              >
+                {code}
+              </button>
+            ))}
+          </div>
+        </div>
         <button
           onClick={toggleStatus}
           className={`block w-full text-left text-[1.6rem] font-display font-bold mt-1.5 transition-colors leading-none ${statusColor} hover:opacity-80`}
@@ -104,10 +115,10 @@ export default function CellCard({ block, entry, onUpdate }: CellCardProps) {
             </button>
             <button
               onClick={cycleVirtual}
-              title={virtualTitle}
+              title={locationTitle}
               className="hover:scale-125 active:scale-100 transition-transform"
             >
-              <VirtualIcon className={`w-7 h-7 transition-colors ${virtualMode !== 'none' ? 'text-blue-500' : 'text-slate-300'}`} />
+              <LocationIcon className={`w-7 h-7 transition-colors ${virtualMode !== 'none' ? 'text-blue-500' : 'text-emerald-500'}`} />
             </button>
           </div>
         ) : (
@@ -115,34 +126,6 @@ export default function CellCard({ block, entry, onUpdate }: CellCardProps) {
         )}
       </div>
 
-      {/* Special codes */}
-      <div className="border-t border-slate-100">
-        <button
-          onClick={() => setShowSpecial(v => !v)}
-          className="w-full flex items-center justify-between px-4 py-2 text-[9px] font-mono font-bold uppercase tracking-widest text-slate-400 hover:text-slate-500 hover:bg-slate-50 transition-colors"
-        >
-          <span>Special</span>
-          <ChevronDown className={`w-3 h-3 transition-transform ${showSpecial ? 'rotate-180' : ''}`} />
-        </button>
-        {showSpecial && (
-          <div className="grid grid-cols-4 gap-1 px-3 pb-3">
-            {SPECIAL_CODES.map(({ code, label }) => (
-              <button
-                key={code}
-                onClick={() => onUpdate({ status: 'Special', specialCode: code, tardy: false, virtualMode: 'none' })}
-                title={label}
-                className={`text-[11px] font-mono font-bold py-1.5 rounded-lg text-center transition-all ${
-                  isSpecial && entry?.specialCode === code
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                }`}
-              >
-                {code}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

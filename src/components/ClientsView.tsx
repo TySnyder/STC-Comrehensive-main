@@ -10,9 +10,12 @@ import {
   Plus,
   Clock,
   Video,
-  ChevronRight
+  ChevronRight,
+  UserPlus,
 } from 'lucide-react';
-import { Client, ClinicalNote, AttendanceEntry } from '../types';
+import { Client, ClinicalNote, AttendanceEntry, UaFrequency } from '../types';
+import { estDischargeDate, DEFAULT_ENROLLMENT_DAYS, MIN_ENROLLMENT_DAYS } from '../utils/dcDateHelpers';
+import AddClientModal from './AddClientModal';
 
 interface ClientsViewProps {
   clients: Client[];
@@ -20,13 +23,24 @@ interface ClientsViewProps {
   selectedClient: Client | null;
   onSelectClient: (client: Client | null) => void;
   openNoteModal: (clientId?: string, clientName?: string) => void;
+  onAddClient: (client: Client) => void;
+  staffNames: string[];
   onUpdateAttendance?: (
     clientId: string,
     date: string,
     block: 'A' | 'B' | undefined,
     updates: { status?: 'Present' | 'Absent'; tardy?: boolean; virtual?: boolean; excused?: boolean }
   ) => void;
+  onUpdateClient?: (clientId: string, updates: Partial<Client>) => void;
 }
+
+const UA_FREQUENCY_OPTIONS: { value: UaFrequency; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'twice-weekly', label: '2×/week' },
+  { value: 'weekly', label: '1×/week' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'external', label: 'External (PCP)' },
+];
 
 // Single block cell used in the multi-block DIOP/EIOP calendar
 function BlockCell({
@@ -117,10 +131,14 @@ export default function ClientsView({
   selectedClient,
   onSelectClient,
   openNoteModal,
+  onAddClient,
+  staffNames,
   onUpdateAttendance,
+  onUpdateClient,
 }: ClientsViewProps) {
   const [filterProgram, setFilterProgram] = useState('All');
   const [filterInsurance, setFilterInsurance] = useState('All');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   const filteredClients = clients.filter(client => {
     const matchesProgram = filterProgram === 'All' || client.program === filterProgram;
@@ -223,8 +241,64 @@ export default function ClientsView({
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-medium">Est. Discharge:</span>
-                    <span className="font-semibold text-slate-700 font-mono">{selectedClient.expectedDischargeDate}</span>
+                    <span className="font-semibold text-slate-700 font-mono">{estDischargeDate(selectedClient)}</span>
                   </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-medium">Enrollment:</span>
+                    <span className="flex items-center gap-1.5 font-mono text-slate-700">
+                      <input
+                        type="number"
+                        min={MIN_ENROLLMENT_DAYS}
+                        value={selectedClient.enrollmentDays ?? DEFAULT_ENROLLMENT_DAYS}
+                        onChange={e => {
+                          const n = Number(e.target.value);
+                          onUpdateClient?.(selectedClient.id, { enrollmentDays: Number.isNaN(n) ? undefined : n });
+                        }}
+                        onBlur={e => {
+                          const n = Number(e.target.value);
+                          if (Number.isNaN(n) || n < MIN_ENROLLMENT_DAYS)
+                            onUpdateClient?.(selectedClient.id, { enrollmentDays: MIN_ENROLLMENT_DAYS });
+                        }}
+                        className="w-14 font-semibold text-right border border-slate-200 rounded-md px-1.5 py-0.5 bg-white hover:border-slate-300 transition-colors"
+                      />
+                      days ·
+                      <select
+                        value={selectedClient.scheduleDaysPerWeek ?? 5}
+                        onChange={e => onUpdateClient?.(selectedClient.id, { scheduleDaysPerWeek: Number(e.target.value) })}
+                        className="font-semibold border border-slate-200 rounded-md px-1 py-0.5 bg-white hover:border-slate-300 transition-colors"
+                      >
+                        {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n}/wk</option>)}
+                      </select>
+                    </span>
+                  </div>
+                  <input
+                    value={selectedClient.dcDateNote ?? ''}
+                    onChange={e => onUpdateClient?.(selectedClient.id, { dcDateNote: e.target.value })}
+                    placeholder="DC date note (optional)"
+                    className="w-full text-[11px] border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-600 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300"
+                  />
+                </div>
+                <div className="border-t border-[#f1f5f9] pt-4 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-medium">UA Testing:</span>
+                    <select
+                      value={selectedClient.uaFrequency ?? 'none'}
+                      onChange={e => onUpdateClient?.(selectedClient.id, { uaFrequency: e.target.value as UaFrequency })}
+                      className="font-semibold text-slate-700 font-mono text-xs border border-slate-200 rounded-md px-2 py-1 bg-white hover:border-slate-300 transition-colors"
+                    >
+                      {UA_FREQUENCY_OPTIONS.map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {selectedClient.uaFrequency && selectedClient.uaFrequency !== 'none' && (
+                    <input
+                      value={selectedClient.uaNote ?? ''}
+                      onChange={e => onUpdateClient?.(selectedClient.id, { uaNote: e.target.value })}
+                      placeholder="UA note (optional — e.g. special arrangement)"
+                      className="w-full text-[11px] border border-slate-200 rounded-md px-2.5 py-1.5 text-slate-600 placeholder:text-slate-300 focus:outline-none focus:border-indigo-300"
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -452,9 +526,18 @@ export default function ClientsView({
             </select>
           </div>
         </div>
-        <div className="text-right">
-          <span className="text-[10px] font-mono text-slate-400 font-bold uppercase block">Cases Matching</span>
-          <span className="text-lg font-bold text-indigo-600 font-display">{filteredClients.length} Patients found</span>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <span className="text-[10px] font-mono text-slate-400 font-bold uppercase block">Cases Matching</span>
+            <span className="text-lg font-bold text-indigo-600 font-display">{filteredClients.length} Patients found</span>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shrink-0"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            Add Client
+          </button>
         </div>
       </div>
 
@@ -497,15 +580,15 @@ export default function ClientsView({
                     </span>
                   </td>
                   <td className="py-4 px-6 font-mono text-slate-600">{client.admissionDate}</td>
-                  <td className="py-4 px-6 font-mono text-slate-600">{client.expectedDischargeDate}</td>
+                  <td className="py-4 px-6 font-mono text-slate-600">{estDischargeDate(client)}</td>
                   <td className="py-4 px-6 font-sans font-medium text-slate-700">{client.primaryTherapist}</td>
                   <td className="py-4 px-6 font-sans text-slate-500 font-medium">{client.insurance}</td>
                   <td className="py-4 px-6">
                     <span className={`inline-flex items-center gap-1 font-mono text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                      client.status === 'Completed' || client.status === 'Graduated'
+                      client.status === 'Active'
                         ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                        : client.status === 'Needs Packet'
-                        ? 'bg-red-50 text-red-600 border border-red-100 animate-pulse'
+                        : client.status === 'Discharged'
+                        ? 'bg-slate-100 text-slate-500 border border-slate-200'
                         : 'bg-amber-50 text-amber-600 border border-amber-100'
                     }`}>
                       {client.status}
@@ -526,6 +609,12 @@ export default function ClientsView({
         </div>
       </div>
 
+      <AddClientModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onSave={onAddClient}
+        staffNames={staffNames}
+      />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 # Handoff: Census Page — STC Operations Portal
 
-**Date written:** 2026-06-29  
-**Status:** Pre-implementation — outstanding questions must be resolved before any code is written.
+**Last updated:** 2026-06-29  
+**Status:** Active development — census grid is functional. See "Current State" below.
 
 ---
 
@@ -13,185 +13,128 @@
 
 **Backend:** Supabase free tier (dev phase). No real PHI yet. Will migrate to Firebase/Firestore + Google Cloud BAA when real clients go live.
 
-**Existing components** (all in `/Users/ts/github-sites/STC-Comrehensive-main/src/components/`):
-- `DashboardView.tsx`, `ClientsView.tsx`, `AttendanceView.tsx`, `DischargeView.tsx`
-- `ReportsView.tsx`, `StaffView.tsx`, `SettingsView.tsx`
-- `Sidebar.tsx`, `Header.tsx`, `NoteModal.tsx`
+---
 
-**Visual style:** slate-50 background, white cards, slate-200 borders, slate-800 text. Clinical/administrative aesthetic. WCAG AA required — never use color as the only indicator.
+## Architecture: Source of Truth
 
-**Critical rule from the Office Manager: Never make assumptions. Always ask for clarification before implementing any design, field, or behavior not explicitly specified.**
+**`src/types.ts` and `src/data.ts` — NEVER MODIFY THESE.**  
+All new data lives in `CensusEntry[]` and `InsuranceBillingNote[]`, managed in `App.tsx` state.
 
-**Project docs:**
-- `/Users/ts/github-sites/STC-Comrehensive-main/.planning/PROJECT.md` — full requirements, constraints, decisions log
+### Adapter Pattern
+`src/utils/clientAdapter.ts` maps `Client` → `TempClient` (view-model):
+- `adaptClient(client)` — uses `client.attendanceHistory` only
+- `adaptClientWithEntries(client, allCensusEntries)` — merges live census records on top of history so Totals/Analytics reflect what's been entered in the grid this week
+
+`TempClient` is the shape consumed by all analytics sub-views. It is never stored — always derived.
+
+### CensusEntry shape (from `src/types.ts`)
+```ts
+interface CensusEntry {
+  id: string;
+  clientId: string;
+  date: string;          // ISO YYYY-MM-DD
+  block: ProgramBlock;   // 'DIOP' | 'DOP' | 'EIOP' | 'EOP' | 'IND'
+  status: 'Present' | 'Absent' | null;
+  excused: boolean;
+  tardy: boolean;
+  virtualMode: 'none' | 'residence' | 'away';
+  specialCode?: 'L' | 'D';   // additive modifier — Last Day, Discharged
+  autoFilled: boolean;
+}
+```
+
+### Auto-fill rule
+When DIOP or EIOP is recorded, the paired block (DOP or EOP respectively) is automatically mirrored — **unless** the pair was manually set (autoFilled: false).
 
 ---
 
-## What the Census Page Is
+## Current State (as of 2026-06-29)
 
-A **weekly attendance grid** that replaces the current Google Sheets census spreadsheet. It shows all clients across both locations (SF + ABQ), with one or more rows per client and one column per day of the week (Sun–Sat). Each cell holds a short status code.
+### Census sub-tabs
+`CensusView.tsx` has 4 sub-tabs: **Census Grid | Totals | Runway | Analytics**  
+(Roster tab exists in code but is hidden from the nav.)
 
-The goal is a **simplified** version of the spreadsheet — cleaner and more automated, not a pixel-perfect replica.
+### Census Grid tab
+- **`src/components/census/CensusGrid.tsx`** — weekly grid grouped by program (DIOP/EIOP/EOP/DOP/IND), location + program filters, legend, avatar initials
+- **`src/components/census/CensusCell.tsx`** — fully inline interactive card (NO popup). Contains:
+  - `*` / `L` / `D` modifier in top-left (cycles: undefined → L → D → undefined)
+  - Status toggle (null → Present → Absent → null)
+  - Present mode: Clock (tardy), Video/Home/Car (virtualMode cycle)
+  - Absent mode: Unexcused / Excused pill toggle
+  - Future days: grey + "upcoming", non-interactive
+  - IND cells only: `×` button top-right to remove the entry
+- Week nav: pill control with month label above, `‹ 22nd | Today | 27th ›`; date range subtitle only shown when not on current week
 
----
+### Totals tab
+`src/components/census/AttendanceTotals.tsx` — uses `adaptClientWithEntries` so it reflects live census edits.
 
-## Program Structure
+### Runway tab
+`src/components/census/TemporalRunway.tsx` — repurposed as visual attendance distribution per client:
+- Bar = 85 program days wide (100% = 85 days)
+- X = (fullDaysAtt + excused) / 85 — shown as "X% of 85-day program"
+- 6 colored segments sorted largest → smallest:
+  - Emerald = In-Person present (fullDaysAtt − virtualCount)
+  - Slate = Absent total (excused + unexcused)
+  - Amber = Excused
+  - Red = Unexcused
+  - Orange = Tardy
+  - Sky = Virtual
+- Sorted by most total recorded days at the top
 
-| Program | Time | Days | Notes |
-|---------|------|------|-------|
-| DIOP (Day IOP) | 11:45 AM – 1:30 PM | Mon–Fri | |
-| DOP (Day OP) | 1:45 PM – 3:00 PM | Mon–Fri | DIOP clients also attend this block |
-| EIOP (Evening IOP) | 3:45 PM – 5:30 PM | Mon–Fri | |
-| EOP (Evening OP) | 5:45 PM – 7:00 PM | Mon–Fri | EIOP clients also attend this block |
-| IND | Varies | Once/week | Individual therapy |
-
-**Two-block rule:** DIOP clients attend BOTH the 11:45 (DIOP) and 1:45 (DOP) blocks — two independent attendance records per day. EIOP clients attend BOTH the 3:45 (EIOP) and 5:45 (EOP) blocks.
-
----
-
-## Current Spreadsheet Structure (What We're Replacing)
-
-### Status Code Legend
-
-| Code | Meaning |
-|------|---------|
-| `1` | Attended Program/Service |
-| `0` | No Program/Service |
-| `L` | Last Day of Program Attended |
-| `E` | Excused Absence |
-| `U` | Unexcused Absence |
-| `T` | Attended Telehealth |
-| `P` | Client In Person (IND Only) |
-| `D` | Discharge Date |
-| `H` | Holiday |
-| `C` | Closed (Weather, Etc.) |
-| `R` | Client at their residence |
-| `N` | Client NOT at their residence |
-| `0.5-0` | Half day (attended one block, absent the other) |
-
-### Grid Layout (Spreadsheet)
-
-- **Columns:** Sun, Mon, Tue, Wed, Thu, Fri, Sat (weekday dates shown in red in the spreadsheet)
-- **Far right:** "Level of Care" column — program type for that row
-- **Right side:** "Notes / Excused / Unexcused" — free-text column
-- **Far right:** "INS Bill" column — insurance billing status (unclear if this belongs in the React app — see questions)
-- **Top right:** "Week" label + date (yellow cell) + "Invoiced" status (green cell)
-
-### Rows Per Client (Spreadsheet Has 4 Rows Per Client)
-
-1. **Program row** (e.g., DIOP) — daily attendance status code (1, 0, L, E, U, etc.)
-2. **LOC row** — location modifier per day (T, R, T/R, T/R-U, P, N, etc.)
-3. **IND row** — weekly individual therapy attendance (with a client initials code like "VeGeKl: 1")
-4. **LOC row** — location modifier for the IND session
-
-**Client name row styling in spreadsheet:** Bold client name with "M-F" suffix, purple/blue background highlight.
-
-### Section Headers
-
-- **"SANTA FE"** — dark red/maroon header
-- **"Albuquerque"** — green header
-
-There is also a small **blue square column** after the Level of Care column whose purpose is unknown (see questions).
+### Analytics tab
+`src/components/census/BentoDashboard.tsx`
 
 ---
 
-## Design Goals for the React Version
+## Key Files
 
-1. **Simplified:** Cleaner than the spreadsheet. No merged cells, no color-coded everything.
-2. **Automated:** Running attendance totals update automatically when census is updated.
-3. **WCAG AA:** Every status indicator uses both color AND a symbol/text label.
-4. **Consistent with app:** Use existing slate-based palette, white cards, clinical aesthetic.
-5. **Week navigation:** Users need to move forward/backward by week.
-
----
-
-## Outstanding Questions — MUST ASK BEFORE IMPLEMENTING
-
-These must be resolved with the user before writing any code. Do not assume answers.
-
-### 1. LOC (Location) Row Display
-The spreadsheet shows a separate LOC sub-row for each client per program (e.g., "T", "R", "T/R"). Should the React census:
-- **Option A:** Keep a separate sub-row per client for location modifiers (mirrors spreadsheet)?
-- **Option B:** Collapse location into the main attendance cell as a small badge or secondary symbol?
-- **Option C:** Something else?
-
-### 2. Blue Square Column
-There is a small blue square column immediately after the "Level of Care" column in the spreadsheet. What does this column track?
-
-### 3. INS Bill Column
-There is an "INS Bill" column on the far right of the spreadsheet (insurance billing status). Should this:
-- Appear in the census view?
-- Live in a separate billing/reporting view?
-- Not be in the React app at all (handled outside the portal)?
-
-### 4. Half-Day Code (0.5-0)
-The `0.5-0` code appears to represent attending one of two blocks but not the other (relevant to DIOP/DOP and EIOP/EOP two-block clients). How should this display in the React UI? Options:
-- A split cell (top half filled, bottom half empty)?
-- A single symbol like `½`?
-- Two separate cells, one per block?
-- Something else?
-
-### 5. Single Row vs. Multi-Row Per Client
-The spreadsheet uses 4 rows per client. For the React census, should each client have:
-- **Multiple sub-rows** (program row + LOC row, mirroring the spreadsheet)?
-- **A single row** with LOC info embedded differently (badge, tooltip, popover)?
-- **Expandable rows** (collapsed by default, expand to show LOC detail)?
-
-### 6. Inline Editing vs. Read-Only
-Should clicking a census cell:
-- **Open an edit popover/modal** to change the status code directly in the census?
-- **Be read-only** in this view, with data entered only via the Attendance view?
-- **Link to the Attendance view** for that client + day when clicked?
-
-### 7. IND Row — What Does the Number Mean?
-The IND row in the spreadsheet shows client initials + a number (e.g., "VeGeKl: 1"). What does the number represent?
-- Sessions attended this week?
-- Total IND sessions to date?
-- Something else?
-
-### 8. Week Boundaries
-The grid shows Sun–Sat columns. Does the census week run Sun–Sat, or Mon–Sun, or Mon–Fri (with weekends grayed out)?
-
-### 9. "Invoiced" Status
-The spreadsheet has an "Invoiced" green cell per week. Should the React census track whether a week has been invoiced? If so, who marks it invoiced and what does that trigger?
-
-### 10. Empty Weekend Cells
-Clients generally attend Mon–Fri only. Should Sat/Sun cells be:
-- Grayed out / disabled?
-- Still enterable (for any weekend programming)?
-- Hidden entirely?
+| File | Role |
+|------|------|
+| `src/App.tsx` | State: `clients`, `censusEntries`, `billingNotes`. Handlers: `onSaveCensusEntry`, `onRemoveCensusEntry`, `onUpdateBillingNote` |
+| `src/components/CensusView.tsx` | Sub-tab nav, week navigation, wires everything together |
+| `src/components/census/CensusGrid.tsx` | Weekly grid shell — filters, program groups, avatar, billing cog |
+| `src/components/census/CensusCell.tsx` | Inline interactive attendance card |
+| `src/components/census/CellCard.tsx` | Standalone card (used in Roster/WeeklyCensusGrid — NOT used in the main census grid) |
+| `src/components/census/QuickAdmitModal.tsx` | Exports `QuickAdmitCard` — used in Roster tab |
+| `src/utils/clientAdapter.ts` | `TempClient` type + `adaptClient` + `adaptClientWithEntries` |
+| `src/components/census/blockStyles.ts` | `clientBlocks(program)` → which ProgramBlocks to show per client |
 
 ---
 
-## What Has Already Been Done
+## Prop Chain: Cell Update
 
-- The app shell, navigation (Sidebar), and all other views are complete.
-- Mock data exists in `src/data.ts` with realistic client/attendance seed data.
-- The census is listed as an "Active" requirement in `PROJECT.md`.
-- A Stitch design prompt was drafted in a prior session but was not finalized — it should be revised once the outstanding questions above are answered.
-
----
-
-## Suggested First Steps for the New Session
-
-1. **Read this document** (done).
-2. **Read** `/Users/ts/github-sites/STC-Comrehensive-main/.planning/PROJECT.md` for full project constraints.
-3. **Ask all outstanding questions** (section above) in a single message to the user. Do not implement anything until you have answers.
-4. Once answers are in, draft the component structure and data model for review before writing code.
-5. If using Stitch for initial UI design, write the updated Stitch prompt based on the answers and show it to the user for approval before running it.
+```
+App.tsx
+  onSaveCensusEntry / onRemoveCensusEntry
+    → CensusView.tsx
+        handleGridCellUpdate (builds/merges CensusEntry, saves, auto-fills pair block)
+        onRemoveCensusEntry (passed straight through)
+          → CensusGrid.tsx
+              onCellUpdate / onRemoveInd
+                → CensusCell.tsx
+                    onUpdate(Partial<CensusEntry>) / onRemove()
+```
 
 ---
 
-## Files to Read Before Starting
+## Design Rules
 
-| Path | Why |
-|------|-----|
-| `/Users/ts/github-sites/STC-Comrehensive-main/.planning/PROJECT.md` | Full requirements, constraints, decisions |
-| `/Users/ts/github-sites/STC-Comrehensive-main/src/data.ts` | Mock data model — client/attendance structure |
-| `/Users/ts/github-sites/STC-Comrehensive-main/src/components/AttendanceView.tsx` | Closest existing component — reuse patterns |
-| `/Users/ts/github-sites/STC-Comrehensive-main/src/components/ClientsView.tsx` | Client list patterns |
-| `/Users/ts/github-sites/STC-Comrehensive-main/src/components/Sidebar.tsx` | How census route should be registered |
+- **No popover/modal for cell editing** — all interactions are inline on the card itself
+- **D and L are additive modifiers** — they don't replace Present/Absent status, stored as `specialCode` only
+- **Half-day fields** (`halfDaysAtt`, `halfExc`, `halfUnexc`) exist in TempClient but are excluded from the Runway visualization
+- **Future days** (date > today ISO string) are always disabled/grey
+- **85 days** is the program target — used as the denominator in Runway bar
+- Tailwind custom tokens: `text-primary`, `bg-primary`, `font-display`, `text-secondary`
 
 ---
 
-*Written: 2026-06-29*
+## What's Not Done / Possible Next Steps
+
+- Roster tab is hidden (code exists in `WeeklyCensusGrid.tsx`, `QuickAdmitModal.tsx`) — could be unhidden if needed
+- No persistence yet (all state in memory — Supabase integration is future work)
+- `InsuranceBillingModal` exists but billing notes aren't surfaced in reports yet
+- `BentoDashboard` (Analytics tab) was ported from stc-temp and may need data wiring review
+
+---
+
+*Last updated: 2026-06-29*

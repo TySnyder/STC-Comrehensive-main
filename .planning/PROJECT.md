@@ -34,6 +34,9 @@ The Office Manager can complete every daily clinical operations task — attenda
 - [ ] Staff expansion: multi-user auth with role-based access (admin/therapist/intake/supervisor)
 - [ ] Firestore migration + Google Cloud BAA signed when real PHI goes live
 - [ ] Admissions and authorizations modules (last)
+- [ ] **Client lifecycle navigation**: move efficiently across pending admits → current → discharged in one place; one client record for life with a status field (never copy/move rows); discharged records retained and searchable (~10 yrs of history per Contact Sheet)
+- [ ] Pending-admit pipeline (from Call Tracking "Pending Admit FCs"): checklist per prospective client — BPS scheduled, insurance verified, APW, financial contract, therapist assigned — converting to Active on first day
+- [ ] Discharge workflow: actual DC date, row "moves" via status change, final audit/QOL-DC steps (spec in `.planning/spreadsheets/02-running-attendance.md`)
 
 ### Out of Scope
 
@@ -47,6 +50,8 @@ The Office Manager can complete every daily clinical operations task — attenda
 ## Context
 
 **Facility:** Solutions Treatment Center (STC) — behavioral health, two locations: Santa Fe (SF) + Albuquerque (ABQ).
+
+**BestNotes is the clinical EHR of record.** This portal is the administrative/operations layer — it must not become the clinical record, but it can support BestNotes workflows (cross-checking census vs EHR, prompting what needs entry there). Spreadsheet→app field mapping lives in `.planning/spreadsheets/` (docs 01–06 + README traceability table).
 
 **Programs:**
 | Program | Time | Days | Blocks |

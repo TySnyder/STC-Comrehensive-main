@@ -1,83 +1,37 @@
-import React, { useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { LayoutGrid, BarChart3, Milestone, Activity } from 'lucide-react';
 import { Client, CensusEntry, InsuranceBillingNote, ProgramBlock } from '../types';
+import { adaptClientWithEntries, TempClient, DailyAttendance } from '../utils/clientAdapter';
+import { getMonday, addDays, weekDaysFrom, weekNavLabel, formatWeekRange } from '../utils/weekHelpers';
+import WeekNavPill from './shared/WeekNavPill';
 import CensusGrid from './census/CensusGrid';
-import CellCard from './census/CellCard';
 import InsuranceBillingModal from './census/InsuranceBillingModal';
+import WeeklyCensusGrid from './census/WeeklyCensusGrid';
+import AttendanceTotals from './census/AttendanceTotals';
+import TemporalRunway from './census/TemporalRunway';
+import BentoDashboard from './census/BentoDashboard';
+import QuickAdmitCard from './census/QuickAdmitModal';
+import AuditSignoff from './census/AuditSignoff';
 
-// ─── Week helpers ────────────────────────────────────────────────────────────
+// ─── Sub-tab config ──────────────────────────────────────────────────────────
 
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+type CensusSubTab = 'grid' | 'roster' | 'totals' | 'runway' | 'analytics';
 
-function getMonday(fromIso: string): Date {
-  const d = new Date(fromIso + 'T12:00:00');
-  const day = d.getDay(); // 0=Sun
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
-function addDays(isoDate: string, n: number): string {
-  const d = new Date(isoDate + 'T12:00:00');
-  d.setDate(d.getDate() + n);
-  return isoDate.slice(0, 4) + '-' +
-    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-    String(d.getDate()).padStart(2, '0');
-}
-
-function weekDaysFrom(monday: string): string[] {
-  return [0, 1, 2, 3, 4].map(n => addDays(monday, n));
-}
-
-function formatWeekRange(monday: string): string {
-  const fri = addDays(monday, 4);
-  const monD = new Date(monday + 'T12:00:00');
-  const friD = new Date(fri    + 'T12:00:00');
-  const monLabel = monD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const friLabel = friD.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  return `Mon ${monLabel} – Fri ${friLabel}`;
-}
-
-// ─── Popover positioning ─────────────────────────────────────────────────────
-
-const CARD_W = 208;  // w-52
-const CARD_H = 300;  // approx, card shrinks with content
-
-function computePos(rect: DOMRect): { top: number; left: number } {
-  const margin = 8;
-  let left = rect.right + margin;
-  let top  = rect.top + rect.height / 2 - CARD_H / 2;
-
-  if (left + CARD_W > window.innerWidth - margin) {
-    left = rect.left - CARD_W - margin;
-  }
-  if (top + CARD_H > window.innerHeight - margin) {
-    top = window.innerHeight - CARD_H - margin;
-  }
-  if (top < margin) top = margin;
-  if (left < margin) left = margin;
-
-  return { top, left };
-}
+const SUB_TABS: { id: CensusSubTab; label: string; icon: React.ReactNode }[] = [
+  { id: 'grid',      label: 'Census Grid',   icon: <LayoutGrid  className="w-3.5 h-3.5" /> },
+  { id: 'totals',    label: 'Totals',        icon: <BarChart3   className="w-3.5 h-3.5" /> },
+  { id: 'runway',    label: 'Runway',        icon: <Milestone   className="w-3.5 h-3.5" /> },
+  { id: 'analytics', label: 'Analytics',     icon: <Activity    className="w-3.5 h-3.5" /> },
+];
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-interface PopoverState {
-  clientId: string;
-  date: string;
-  block: ProgramBlock;
-  entry: CensusEntry | null;
-  top: number;
-  left: number;
-}
 
 interface CensusViewProps {
   clients: Client[];
   censusEntries: CensusEntry[];
   billingNotes: InsuranceBillingNote[];
   onSaveCensusEntry: (entry: CensusEntry) => void;
+  onRemoveCensusEntry: (entryId: string) => void;
   onUpdateBillingNote: (note: InsuranceBillingNote) => void;
 }
 
@@ -88,13 +42,35 @@ export default function CensusView({
   censusEntries,
   billingNotes,
   onSaveCensusEntry,
+  onRemoveCensusEntry,
   onUpdateBillingNote,
 }: CensusViewProps) {
-  const todayMonday = isoDate(getMonday(new Date().toISOString().slice(0, 10)));
+  const todayMonday = getMonday(new Date().toISOString().slice(0, 10));
 
-  const [weekStart, setWeekStart] = useState<string>(todayMonday);
-  const [popover, setPopover]     = useState<PopoverState | null>(null);
+  const [censusSubTab,    setCensusSubTab]    = useState<CensusSubTab>('grid');
+  const [tempClients,     setTempClients]     = useState<TempClient[]>(() => clients.map(c => adaptClientWithEntries(c, [])));
+  const [quickAdmitOpen,  setQuickAdmitOpen]  = useState(false);
+  const [weekStart,       setWeekStart]       = useState<string>(todayMonday);
   const [billingClientId, setBillingClientId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTempClients(clients.map(c => adaptClientWithEntries(c, censusEntries)));
+  }, [clients, censusEntries]);
+
+  const handleUpdateTempClient = useCallback((updated: TempClient) => {
+    setTempClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+  }, []);
+
+  const handleUpdateTempAttendance = useCallback((clientId: string, day: keyof TempClient['weeklyAttendance'], data: DailyAttendance) => {
+    setTempClients(prev => prev.map(c => {
+      if (c.id !== clientId) return c;
+      return { ...c, weeklyAttendance: { ...c.weeklyAttendance, [day]: data } };
+    }));
+  }, []);
+
+  const handleAdmitTempClient = useCallback((newClient: TempClient) => {
+    setTempClients(prev => [...prev, newClient]);
+  }, []);
 
   const weekDays = weekDaysFrom(weekStart);
 
@@ -102,51 +78,25 @@ export default function CensusView({
   const prevWeek = () => setWeekStart(w => addDays(w, -7));
   const nextWeek = () => setWeekStart(w => addDays(w,  7));
 
-  // Open the edit card
-  const handleCellClick = useCallback((
+  const handleGridCellUpdate = useCallback((
     clientId: string,
     date: string,
     block: ProgramBlock,
-    entry: CensusEntry | null,
-    rect: DOMRect,
+    existingEntry: CensusEntry | null,
+    updates: Partial<CensusEntry>,
   ) => {
-    // Toggle off if same cell re-clicked
-    if (
-      popover &&
-      popover.clientId === clientId &&
-      popover.date === date &&
-      popover.block === block &&
-      popover.entry?.id === entry?.id
-    ) {
-      setPopover(null);
-      return;
-    }
-    const { top, left } = computePos(rect);
-    setPopover({ clientId, date, block, entry, top, left });
-  }, [popover]);
-
-  // Save an entry update from CellCard
-  const handleCellUpdate = useCallback((updates: Partial<CensusEntry>) => {
-    if (!popover) return;
-
-    // Build or reuse the base entry
-    const base: CensusEntry = popover.entry ?? {
+    const base: CensusEntry = existingEntry ?? {
       id: `ce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      clientId: popover.clientId,
-      date: popover.date,
-      block: popover.block,
+      clientId,
+      date,
+      block,
       status: null,
       excused: false,
       tardy: false,
       virtualMode: 'none',
       autoFilled: false,
     };
-
     const updated: CensusEntry = { ...base, ...updates };
-
-    // Track entry in popover state so re-clicks reuse the same ID
-    setPopover(s => s ? { ...s, entry: updated } : null);
-
     onSaveCensusEntry(updated);
 
     // Auto-fill: DIOP → DOP, EIOP → EOP
@@ -154,10 +104,9 @@ export default function CensusView({
       const pairBlock: ProgramBlock = updated.block === 'DIOP' ? 'DOP' : 'EOP';
       const pairEntry = censusEntries.find(e =>
         e.clientId === updated.clientId &&
-        e.date    === updated.date    &&
-        e.block   === pairBlock
+        e.date     === updated.date     &&
+        e.block    === pairBlock
       );
-      // Only auto-fill if pair is absent or was previously auto-filled
       if (!pairEntry || pairEntry.autoFilled) {
         onSaveCensusEntry({
           id: pairEntry?.id ?? `ce-auto-${Date.now()}`,
@@ -173,12 +122,10 @@ export default function CensusView({
         });
       }
     }
-  }, [popover, censusEntries, onSaveCensusEntry]);
+  }, [censusEntries, onSaveCensusEntry]);
 
-  // Add a new IND session entry and open the popover
   const handleAddInd = useCallback((clientId: string, date: string) => {
-    // Create a blank entry immediately so it shows in the grid
-    const newEntry: CensusEntry = {
+    onSaveCensusEntry({
       id: `ce-ind-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       clientId,
       date,
@@ -188,18 +135,6 @@ export default function CensusView({
       tardy: false,
       virtualMode: 'none',
       autoFilled: false,
-    };
-    onSaveCensusEntry(newEntry);
-    // The grid will re-render with the new entry; open popover for it
-    // Use a small timeout so the DOM cell renders before getBoundingClientRect is needed
-    // (popover position isn't critical here — open it near the top of screen as fallback)
-    setPopover({
-      clientId,
-      date,
-      block: 'IND',
-      entry: newEntry,
-      top: window.innerHeight / 2 - CARD_H / 2,
-      left: window.innerWidth  / 2 - CARD_W / 2,
     });
   }, [onSaveCensusEntry]);
 
@@ -216,71 +151,102 @@ export default function CensusView({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Week navigation bar */}
-      <div className="flex items-center justify-between">
+      {/* Sub-tab navigation */}
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-800 leading-tight">Weekly Census</h1>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">{formatWeekRange(weekStart)}</p>
+          {censusSubTab === 'grid' && weekStart !== todayMonday && (
+            <p className="text-xs text-slate-400 font-mono mt-0.5">{formatWeekRange(weekStart)}</p>
+          )}
         </div>
         <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-          <button
-            onClick={prevWeek}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            title="Previous week"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setWeekStart(todayMonday)}
-            className={`px-3 py-1.5 text-[11px] font-mono font-bold rounded-lg transition-colors ${
-              weekStart === todayMonday
-                ? 'bg-indigo-600 text-white'
-                : 'text-slate-500 hover:bg-slate-100'
-            }`}
-          >
-            Today
-          </button>
-          <button
-            onClick={nextWeek}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            title="Next week"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+          {SUB_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setCensusSubTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
+                censusSubTab === tab.id
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-100'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Grid */}
-      <CensusGrid
-        clients={clients}
-        weekDays={weekDays}
-        weekStart={weekStart}
-        censusEntries={censusEntries.filter(e => weekDays.includes(e.date))}
-        billingNotes={billingNotes}
-        onCellClick={handleCellClick}
-        onAddInd={handleAddInd}
-        onBillingCogClick={setBillingClientId}
-      />
-
-      {/* Floating CellCard popover */}
-      {popover && (
-        <>
-          {/* Invisible backdrop to close on click-outside */}
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setPopover(null)}
-          />
-          <div
-            className="fixed z-50"
-            style={{ top: popover.top, left: popover.left }}
-          >
-            <CellCard
-              block={popover.block}
-              entry={popover.entry}
-              onUpdate={handleCellUpdate}
+      {/* Week nav — only shown on the grid tab */}
+      {censusSubTab === 'grid' && (() => {
+        const { month, startDay, endDay } = weekNavLabel(weekStart);
+        return (
+          <div className="flex items-center justify-between gap-4">
+            <AuditSignoff weekEnd={addDays(weekStart, 4)} />
+            <WeekNavPill
+              monthLabel={month}
+              startLabel={startDay}
+              endLabel={endDay}
+              isToday={weekStart === todayMonday}
+              onPrev={prevWeek}
+              onNext={nextWeek}
+              onToday={() => setWeekStart(todayMonday)}
             />
           </div>
-        </>
+        );
+      })()}
+
+      {/* Sub-tab content */}
+      {censusSubTab === 'grid' && (
+        <CensusGrid
+          clients={clients}
+          weekDays={weekDays}
+          weekStart={weekStart}
+          censusEntries={censusEntries.filter(e => weekDays.includes(e.date))}
+          billingNotes={billingNotes}
+          onCellUpdate={handleGridCellUpdate}
+          onRemoveInd={onRemoveCensusEntry}
+          onAddInd={handleAddInd}
+          onBillingCogClick={setBillingClientId}
+        />
+      )}
+
+      {censusSubTab === 'roster' && (
+        <div className="flex gap-5 items-start">
+          <div className="flex-1 min-w-0">
+            <WeeklyCensusGrid
+              clients={tempClients}
+              onUpdateAttendance={handleUpdateTempAttendance}
+              onQuickAdmit={() => setQuickAdmitOpen(true)}
+            />
+          </div>
+          {quickAdmitOpen && (
+            <div className="shrink-0">
+              <QuickAdmitCard
+                onClose={() => setQuickAdmitOpen(false)}
+                onAdmit={handleAdmitTempClient}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {censusSubTab === 'totals' && (
+        <AttendanceTotals
+          clients={tempClients}
+          onUpdateClient={handleUpdateTempClient}
+        />
+      )}
+
+      {censusSubTab === 'runway' && (
+        <TemporalRunway clients={tempClients} />
+      )}
+
+      {censusSubTab === 'analytics' && (
+        <BentoDashboard
+          clients={tempClients}
+          onSelectSubTab={(tab) => setCensusSubTab(tab as CensusSubTab)}
+        />
       )}
 
       {/* Insurance Billing Modal */}
@@ -293,6 +259,7 @@ export default function CensusView({
           onClose={() => setBillingClientId(null)}
         />
       )}
+
     </div>
   );
 }

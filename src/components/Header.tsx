@@ -3,19 +3,63 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { Search, Bell, Clock, Calendar, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Bell, Clock, Calendar, CheckCircle, AlertCircle, User, Users } from 'lucide-react';
+import { Client, Staff } from '../types';
 
 interface HeaderProps {
   title: string;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   openNoteModal: () => void;
+  clients: Client[];
+  staff: Staff[];
+  onSelectClient: (client: Client) => void;
+  onNavigateToStaff: () => void;
 }
 
-export default function Header({ title, searchQuery, setSearchQuery, openNoteModal }: HeaderProps) {
+export default function Header({ title, searchQuery, setSearchQuery, openNoteModal, clients, staff, onSelectClient, onNavigateToStaff }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const query = searchQuery.trim().toLowerCase();
+  const matchedClients = query.length > 0
+    ? clients.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.id.toLowerCase().includes(query) ||
+        c.program.toLowerCase().includes(query) ||
+        c.insurance.toLowerCase().includes(query)
+      ).slice(0, 5)
+    : [];
+  const matchedStaff = query.length > 0
+    ? staff.filter(s =>
+        s.name.toLowerCase().includes(query) ||
+        s.role.toLowerCase().includes(query) ||
+        s.credentials.toLowerCase().includes(query)
+      ).slice(0, 4)
+    : [];
+  const showDropdown = query.length > 0 && (matchedClients.length > 0 || matchedStaff.length > 0);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [setSearchQuery]);
+
+  const handleSelectClient = (client: Client) => {
+    setSearchQuery('');
+    onSelectClient(client);
+  };
+
+  const handleSelectStaff = () => {
+    setSearchQuery('');
+    onNavigateToStaff();
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -45,7 +89,7 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
       </div>
 
       {/* Global Search Bar */}
-      <div id="header-search-facility" className="max-w-md w-full md:w-80 relative">
+      <div id="header-search-facility" ref={searchRef} className="max-w-md w-full md:w-80 relative">
         <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
           <Search className="h-4 w-4 text-slate-400" />
         </span>
@@ -54,9 +98,63 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && setSearchQuery('')}
           placeholder="Search clients, staff credentials, IDs..."
           className="w-full text-xs pl-9 pr-4 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-sans"
         />
+
+        {showDropdown && (
+          <div className="absolute top-full mt-1.5 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-xl z-50 overflow-hidden">
+            {matchedClients.length > 0 && (
+              <>
+                <div className="px-3 py-1.5 flex items-center gap-1.5 bg-slate-50 border-b border-slate-100">
+                  <User className="w-3 h-3 text-slate-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Clients</span>
+                </div>
+                {matchedClients.map(client => (
+                  <button
+                    key={client.id}
+                    onClick={() => handleSelectClient(client)}
+                    className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex items-center gap-3 border-b border-slate-50 transition-colors"
+                  >
+                    <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-[10px] font-bold shrink-0">
+                      {client.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{client.name}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">{client.program} · {client.location} · {client.insurance}</p>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+            {matchedStaff.length > 0 && (
+              <>
+                <div className="px-3 py-1.5 flex items-center gap-1.5 bg-slate-50 border-b border-slate-100">
+                  <Users className="w-3 h-3 text-slate-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Staff</span>
+                </div>
+                {matchedStaff.map(member => (
+                  <button
+                    key={member.id}
+                    onClick={handleSelectStaff}
+                    className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 flex items-center gap-3 border-b border-slate-50 transition-colors"
+                  >
+                    <img
+                      src={member.photo}
+                      alt={member.name}
+                      className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate">{member.name}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">{member.role} · {member.credentials}</p>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Operations Controls & Indicators */}

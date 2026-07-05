@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-21T00:00:00Z",
+  "title": "Design System: STC Operations Portal",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Action Indigo",
+        "canonical": "oklch(55% 0.27 264)",
+        "tonalRamp": ["#312e81", "#3730a3", "#4338ca", "#4f46e5", "#6366f1", "#818cf8", "#c7d2fe", "#eef2ff"]
+      },
+      "primary-tint": {
+        "role": "primary-tint",
+        "displayName": "Indigo Tint",
+        "canonical": "oklch(93% 0.05 264)",
+        "tonalRamp": ["#3730a3", "#4338ca", "#4f46e5", "#818cf8", "#a5b4fc", "#c7d2fe", "#e0e7ff", "#eef2ff"]
+      },
+      "primary-deep": {
+        "role": "primary-deep",
+        "displayName": "Indigo Deep",
+        "canonical": "oklch(49% 0.27 264)",
+        "tonalRamp": ["#1e1b4b", "#312e81", "#3730a3", "#4338ca", "#4f46e5", "#6366f1", "#a5b4fc", "#e0e7ff"]
+      },
+      "surface": {
+        "role": "surface",
+        "displayName": "Pure Surface",
+        "canonical": "oklch(100% 0 0)",
+        "tonalRamp": ["#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9", "#f8fafc", "#ffffff", "#ffffff"]
+      },
+      "surface-secondary": {
+        "role": "neutral-bg",
+        "displayName": "Portal Body",
+        "canonical": "oklch(98% 0.004 240)",
+        "tonalRamp": ["#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9", "#f8fafc", "#ffffff"]
+      },
+      "ink-primary": {
+        "role": "ink",
+        "displayName": "Operational Black",
+        "canonical": "oklch(15% 0.02 240)",
+        "tonalRamp": ["#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#e2e8f0", "#f8fafc"]
+      },
+      "ink-muted": {
+        "role": "ink-muted",
+        "displayName": "Precision Slate",
+        "canonical": "oklch(50% 0.025 240)",
+        "tonalRamp": ["#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9"]
+      },
+      "success": {
+        "role": "semantic-success",
+        "displayName": "Present Green",
+        "canonical": "oklch(55% 0.18 158)",
+        "tonalRamp": ["#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#a7f3d0", "#ecfdf5"]
+      },
+      "warning": {
+        "role": "semantic-warning",
+        "displayName": "Authorization Amber",
+        "canonical": "oklch(64% 0.18 75)",
+        "tonalRamp": ["#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fde68a", "#fffbeb"]
+      },
+      "critical": {
+        "role": "semantic-critical",
+        "displayName": "Risk Red",
+        "canonical": "oklch(50% 0.22 25)",
+        "tonalRamp": ["#7f1d1d", "#991b1b", "#b91c1c", "#dc2626", "#ef4444", "#f87171", "#fecaca", "#fef2f2"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page titles in the header toolbar. One per view." },
+      "headline": { "displayName": "Headline", "purpose": "Metric card values and primary data figures where a number leads the eye." },
+      "title": { "displayName": "Title", "purpose": "Card headings, modal titles, table column headers." },
+      "body": { "displayName": "Body", "purpose": "All prose, list content, form copy, and supporting text at 12px density." },
+      "label": { "displayName": "Label / Data", "purpose": "Timestamps, client IDs, status codes, breadcrumb paths. Always JetBrains Mono, never Inter." }
+    },
+    "shadows": [
+      {
+        "name": "flush",
+        "value": "none (border: 1px solid #e2e8f0)",
+        "purpose": "Default resting state for all cards and panels. Border carries presence."
+      },
+      {
+        "name": "lifted",
+        "value": "0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)",
+        "purpose": "Interactive cards on hover, focused panels. Barely visible — signals affordance."
+      },
+      {
+        "name": "overlay",
+        "value": "0 4px 24px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)",
+        "purpose": "Notification dropdowns, command overlays, floating panels above the page."
+      },
+      {
+        "name": "modal",
+        "value": "0 20px 60px rgba(0,0,0,0.16), 0 8px 24px rgba(0,0,0,0.10)",
+        "purpose": "Full dialog modals. Maximum elevation in the system."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-state",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default easing for all state transitions (hover, focus, active). 150ms."
+      },
+      {
+        "name": "ease-overlay",
+        "value": "cubic-bezier(0.0, 0.0, 0.2, 1)",
+        "purpose": "Overlay and modal entrance. 200ms in, 150ms out."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (Dark CTA)",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Global top-priority action. Used for Add Clinical Note and highest-stakes context actions.",
+      "html": "<button class=\"ds-btn-primary\"><svg class=\"ds-btn-icon\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"14\"/><line x1=\"2\" y1=\"8\" x2=\"14\" y2=\"8\"/></svg>Add Clinical Note</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; background: #0f172a; color: #ffffff; padding: 10px 16px; border-radius: 8px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; letter-spacing: 0.01em; border: none; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: #1e293b; } .ds-btn-primary:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; } .ds-btn-primary:active { background: #334155; } .ds-btn-icon { width: 14px; height: 14px; }"
+    },
+    {
+      "name": "Action Button (Indigo)",
+      "kind": "button",
+      "refersTo": "button-action",
+      "description": "Save, submit, and confirm actions within modals and forms.",
+      "html": "<button class=\"ds-btn-action\">Save Note</button>",
+      "css": ".ds-btn-action { display: inline-flex; align-items: center; gap: 6px; background: #4f46e5; color: #ffffff; padding: 10px 16px; border-radius: 8px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; border: none; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-action:hover { background: #4338ca; } .ds-btn-action:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; } .ds-btn-action:active { background: #3730a3; } .ds-btn-action:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Cancel and secondary actions. Quiet — never draws attention away from a primary action.",
+      "html": "<button class=\"ds-btn-ghost\">Cancel</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; gap: 6px; background: #ffffff; color: #334155; padding: 10px 16px; border-radius: 8px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 12px; font-weight: 500; border: 1px solid #e2e8f0; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1), border-color 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-ghost:hover { background: #f8fafc; border-color: #cbd5e1; } .ds-btn-ghost:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Global search bar in the header and client directory search fields.",
+      "html": "<div class=\"ds-input-wrap\"><svg class=\"ds-input-icon\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"7\" cy=\"7\" r=\"4.5\"/><line x1=\"10.5\" y1=\"10.5\" x2=\"13.5\" y2=\"13.5\"/></svg><input class=\"ds-input\" type=\"search\" placeholder=\"Search clients, staff, IDs…\"></div>",
+      "css": ".ds-input-wrap { position: relative; display: inline-flex; align-items: center; } .ds-input-icon { position: absolute; left: 10px; width: 14px; height: 14px; color: #94a3b8; pointer-events: none; } .ds-input { width: 100%; padding: 8px 12px 8px 32px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 12px; color: #0f172a; transition: background 150ms, border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: #94a3b8; } .ds-input:focus { background: #ffffff; border-color: #6366f1; box-shadow: 0 0 0 1px #6366f1; outline: none; }"
+    },
+    {
+      "name": "Status Badge — Critical",
+      "kind": "chip",
+      "refersTo": "badge-critical",
+      "description": "Active risk flags, overdue items, failed authorizations. The strongest urgency signal.",
+      "html": "<span class=\"ds-badge ds-badge-critical\">At Risk</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; } .ds-badge-critical { background: #fef2f2; color: #dc2626; }"
+    },
+    {
+      "name": "Status Badge — Warning",
+      "kind": "chip",
+      "refersTo": "badge-warning",
+      "description": "Expiring authorizations, missing signatures, items approaching deadline.",
+      "html": "<span class=\"ds-badge ds-badge-warning\">Expiring</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; } .ds-badge-warning { background: #fffbeb; color: #b45309; }"
+    },
+    {
+      "name": "Status Badge — Success",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Present attendance, completed discharge, cleared items.",
+      "html": "<span class=\"ds-badge ds-badge-success\">Present</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; } .ds-badge-success { background: #ecfdf5; color: #047857; }"
+    },
+    {
+      "name": "Metric Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Dashboard stat tile. Number + label + supporting context. The primary at-a-glance unit.",
+      "html": "<div class=\"ds-metric-card\"><div class=\"ds-metric-header\"><span class=\"ds-metric-label\">Active Clients</span><span class=\"ds-metric-icon\"><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"6\" cy=\"5\" r=\"2.5\"/><path d=\"M1 13c0-2.5 2-4 5-4s5 1.5 5 4\"/><circle cx=\"12\" cy=\"5\" r=\"2\" /><path d=\"M14 13c0-1.5-1-2.5-2.5-3\"/></svg></span></div><div class=\"ds-metric-value\">24</div><div class=\"ds-metric-sub\"><span class=\"ds-metric-delta\">+2</span> since yesterday</div></div>",
+      "css": ".ds-metric-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 160px; transition: box-shadow 150ms cubic-bezier(0.4,0,0.2,1); } .ds-metric-card:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); } .ds-metric-header { display: flex; align-items: center; justify-content: space-between; } .ds-metric-label { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 11px; font-weight: 600; color: #94a3b8; } .ds-metric-icon { width: 28px; height: 28px; background: #eef2ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #4f46e5; } .ds-metric-icon svg { width: 14px; height: 14px; } .ds-metric-value { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; color: #0f172a; line-height: 1.2; letter-spacing: -0.02em; } .ds-metric-sub { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 10px; color: #94a3b8; display: flex; align-items: center; gap: 4px; } .ds-metric-delta { color: #059669; font-weight: 700; font-family: 'JetBrains Mono', ui-monospace, monospace; }"
+    },
+    {
+      "name": "Nav Item — Active",
+      "kind": "nav",
+      "refersTo": "button-action",
+      "description": "Active state of the sidebar navigation. Full indigo-tint background fill — never a left stripe.",
+      "html": "<button class=\"ds-nav-item ds-nav-active\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"2\" y=\"2\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"9\" y=\"2\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"2\" y=\"9\" width=\"5\" height=\"5\" rx=\"1\"/><rect x=\"9\" y=\"9\" width=\"5\" height=\"5\" rx=\"1\"/></svg>Dashboard</button>",
+      "css": ".ds-nav-item { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; font-size: 13px; font-weight: 500; border: none; cursor: pointer; text-align: left; transition: background 150ms, color 150ms; } .ds-nav-item:not(.ds-nav-active) { background: transparent; color: #64748b; } .ds-nav-item:not(.ds-nav-active):hover { background: #f8fafc; color: #1e293b; } .ds-nav-active { background: #eef2ff; color: #4f46e5; font-weight: 600; } .ds-nav-icon { width: 15px; height: 15px; flex-shrink: 0; }"
+    },
+    {
+      "name": "Notification Badge (header bell)",
+      "kind": "custom",
+      "refersTo": "badge-critical",
+      "description": "Live alert indicator on the header bell icon. Red dot signals unread critical items.",
+      "html": "<button class=\"ds-notif-btn\"><svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" width=\"20\" height=\"20\"><path d=\"M15 8A5 5 0 005 8c0 4-2 5-2 5h14s-2-1-2-5\"/><path d=\"M11.73 17a2 2 0 01-3.46 0\"/></svg><span class=\"ds-notif-dot\"></span></button>",
+      "css": ".ds-notif-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9999px; background: transparent; border: none; cursor: pointer; color: #64748b; transition: background 150ms; } .ds-notif-btn:hover { background: #f1f5f9; color: #334155; } .ds-notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: #ef4444; border-radius: 9999px; border: 2px solid #ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Clinical Control Room",
+    "overview": "The STC Operations Portal is a precision instrument for behavioral health administration. It exists in the same visual register as air traffic control software and medical device dashboards — surfaces where staff make decisions in real time, where information must be found instantly, and where an unclear interface has real operational consequences.\n\nThe system uses a tight restrained palette: an indigo accent fires against a cool slate neutral body. White surfaces carry content. Slate gradations handle hierarchy. Indigo activates exactly where action or selection lives and nowhere else. The semantic vocabulary — emerald for success, amber for warning, red for critical — exists to surface alerts instantly, not to decorate.\n\nThis system explicitly rejects the consumer SaaS warmth of Notion or Linear, the gamified optimism of health apps, the overweighted analytics chrome of Tableau, and the hostile density of legacy EHR systems like Epic.",
+    "keyCharacteristics": [
+      "Dense but scannable: compact spacing, precise type hierarchy, maximum information per pixel",
+      "Neutral baseline with surgical accent use — indigo fires only where selection or primary action lives",
+      "Semantic color vocabulary for status: recognizable by convention, never decorative",
+      "Flat-to-layered elevation: borders carry resting hierarchy; subtle shadows emerge on state and overlay",
+      "Three-register typography: Space Grotesk for scanning, Inter for reading, JetBrains Mono for structured data"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Action Indigo (#4f46e5) occupies ≤15% of any given screen surface. It marks selection and primary action — nothing else. A screen where indigo is used broadly is a screen where nothing important stands out.", "section": "colors" },
+      { "name": "The Semantic Lock Rule", "body": "Emerald, amber, and red are status colors, not palette colors. They do not appear on decorative elements, non-status tinted backgrounds, or UI chrome. Seeing red must mean something is wrong.", "section": "colors" },
+      { "name": "The Three-Register Rule", "body": "Inter for reading, Space Grotesk for scanning, JetBrains Mono for structured data. Never mix these registers for the same content type.", "section": "typography" },
+      { "name": "The Density Rule", "body": "Body text runs at 12px (0.75rem). This is a clinical operations tool where staff read dense information under time pressure. Compact type is not a compromise; it is a feature of the register.", "section": "typography" },
+      { "name": "The Flat-First Rule", "body": "Surfaces are flat at rest. Shadow appears only on interactive state (hover) or when the surface is genuinely above the page plane (overlay, modal). A card with a shadow at rest uses decoration as depth.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Action Indigo (#4f46e5) exclusively for active state, primary action, and selection.",
+      "Do pair every status color with labeled text: emerald = present/complete, amber = expiring/warning, red = critical/overdue.",
+      "Do use JetBrains Mono for timestamps, client IDs, status codes, and breadcrumb paths.",
+      "Do keep all primary content surfaces white (#ffffff). Let slate-50 be the body field.",
+      "Do render active navigation as a full indigo-50 background fill — never a left-side border stripe.",
+      "Do implement all interactive states before shipping: hover, focus, active, disabled, error.",
+      "Do keep body and label text at 12px or smaller."
+    ],
+    "donts": [
+      "Don't use border-left or border-right greater than 1px as a colored accent on nav items, list rows, cards, or callouts.",
+      "Don't design to a generic SaaS aesthetic (Notion, Linear, Airtable). This is a clinical operations tool.",
+      "Don't import consumer health app warmth (MyFitnessPal, Headspace visual register).",
+      "Don't use overdesigned analytics chrome (Tableau-style dense chart panels).",
+      "Don't replicate legacy EHR density or visual hostility (Epic, PointClickCare).",
+      "Don't use indigo for decorative fills or hover states on non-primary elements.",
+      "Don't use gradient text (background-clip: text with a gradient fill).",
+      "Don't build identical card grids as the default layout answer.",
+      "Don't place small-caps tracked eyebrow labels above every section heading."
+    ]
+  }
+}
