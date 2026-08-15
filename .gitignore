@@ -12,3 +12,6 @@ live data/
 *.xlsx
 *.xls
 *.csv
+
+# Design reference exports (Stitch, etc.) — scratch input, not source
+.stitch/

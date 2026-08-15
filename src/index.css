@@ -12,3 +12,12 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
 }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 24s linear infinite;
+}

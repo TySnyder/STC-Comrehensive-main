@@ -17,6 +17,7 @@ import NoteModal from './components/NoteModal';
 import CensusView from './components/CensusView';
 import ScheduleView from './components/ScheduleView';
 import UaTrackingView from './components/UaTrackingView';
+import TaskTrackView, { TaskTrackTicker } from './components/TaskTrackView';
 import DischargeClientModal from './components/DischargeClientModal';
 import { applyDischarge, reverseDischarge, updateEpisode, readmitClient, DischargeInput } from './utils/episodeHelpers';
 import { useLocalStorageState } from './utils/useLocalStorageState';
@@ -32,7 +33,7 @@ import {
   INITIAL_SESSIONS,
   INITIAL_SLOTS,
 } from './data';
-import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode } from './types';
+import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult } from './types';
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
@@ -147,7 +148,7 @@ export default function App() {
 
   const handleUpdateIndSession = (
     sessionId: string,
-    updates: { attendanceStatus?: 'Present' | 'Absent' | 'Unconfirmed'; tardy?: boolean; virtual?: boolean }
+    updates: { attendanceStatus?: 'Present' | 'Absent' | 'Unconfirmed'; tardy?: boolean; virtual?: boolean; callResult?: CallResult }
   ) => {
     setIndSessions(prev =>
       prev.map(s => s.id === sessionId ? { ...s, ...updates } : s)
@@ -217,6 +218,7 @@ export default function App() {
   // Dynamic Page titles mapping
   const getTabTitle = () => {
     switch (currentTab) {
+      case 'tasktrack': return 'Task Track';
       case 'dashboard': return 'Operations Dashboard';
       case 'clients': return selectedClient ? `Client Profile: ${selectedClient.name}` : 'Client Directory';
       case 'attendance': return 'Attendance Overview';
@@ -263,11 +265,22 @@ export default function App() {
         />
 
         {/* Dynamic central viewport */}
-        <main id="portal-viewport" className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main id="portal-viewport" className="flex-1 overflow-y-auto flex flex-col">
+          {currentTab === 'tasktrack' && <TaskTrackTicker />}
+          <div className="p-6 lg:p-8">
           <div className="max-w-7xl mx-auto w-full pb-12">
-            
+
+            {currentTab === 'tasktrack' && (
+              <TaskTrackView
+                clients={clients}
+                indSessions={indSessions}
+                onUpdateIndSession={handleUpdateIndSession}
+                uaAssignments={uaAssignments}
+              />
+            )}
+
             {currentTab === 'dashboard' && (
-              <DashboardView 
+              <DashboardView
                 clients={clients} 
                 staff={staffList}
                 onNavigateToTab={handleNavigateToTab}
@@ -382,6 +395,7 @@ export default function App() {
               />
             )}
 
+          </div>
           </div>
         </main>
 

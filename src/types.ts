@@ -29,6 +29,8 @@ export interface AttendanceEntry {
   note?: string;
 }
 
+export type CallResult = 'Pending' | 'Confirmed' | 'No Answer' | 'Left Voicemail' | 'Rescheduled' | 'Cancelled';
+
 export interface IndSession {
   id: string;
   clientId: string;
@@ -42,6 +44,7 @@ export interface IndSession {
   tardy?: boolean;
   virtual?: boolean;
   isManual?: boolean;
+  callResult?: CallResult; // Daily Reminders call-outcome, distinct from attendanceStatus
 }
 
 // Lifecycle: one Client record, status never moves rows. Discharge is reversible
