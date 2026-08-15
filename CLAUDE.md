@@ -2,15 +2,19 @@
 
 ## NEVER COMPACT — HANDOFF INSTEAD (mandatory)
 
-Auto-compaction loses decisions. Do not let a session run long enough to trigger it.
+Auto-compaction loses decisions. Handoffs follow the global director system
+(`~/.claude/CLAUDE.md`); project specifics:
 
-- **Watch context usage.** When context passes ~60–70%, or a work phase completes
-  (whichever comes first), STOP starting new work.
-- **Write/update a handoff first:** `.planning/HANDOFF-<topic>.md` capturing state,
-  decisions made, and next steps — decisions live in repo docs, never only in chat.
-- **Then tell the user the handoff is ready** so they can start a fresh chat from it.
-- New sessions begin by reading the handoff the user points at (they usually paste
-  the path as the first message).
+- `HANDOFF.md` (repo root) is the **director**: current state, decisions, exact next
+  steps. Hard cap 150 lines. Fresh sessions read it first; it directs everything else.
+- Completed work moves verbatim to `HANDOFF-COMPLETED.md` (newest-first archive) as
+  each slice finishes. Never read it wholesale — `rg` it when a past diagnosis is needed.
+- Multi-phase efforts split into `HANDOFF-1.md`, `HANDOFF-2.md`, … with the director
+  as index. Handoffs live at repo root — `.planning/` holds planning docs only
+  (`PROJECT.md`, `spreadsheets/`, `codebase/`).
+- When context passes ~50%, write/update the director; by ~80% stop new work,
+  finalize it, and tell the user to start a fresh chat from it. Decisions live in
+  repo docs, never only in chat.
 
 ## Other standing rules
 
