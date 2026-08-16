@@ -78,9 +78,13 @@ than inventing new design, and to flag (not guess) genuinely undefined business 
 - Call tracking vs. master: branch was based on a stale commit (`8f0d116`, predating Task
   Track/email-mode/auth) — manual reconciliation in `App.tsx` (imports, email-mode state block, new
   `callLog` state) and `Sidebar.tsx` (icon imports); nav item and route wiring auto-merged fine.
-- Final merge commit: `afb9073`. Gate: `tsc --noEmit` clean, 400/400 vitest passing (up from the
-  80 noted pre-session — new test files came in with the merges), `vite build` succeeds. Worktrees
-  removed (`git worktree remove`) after merge; `worktree-agent-*` branches left in place, unpushed.
+- Final merge commit: `afb9073`. Gate: `tsc --noEmit` clean, `vite build` succeeds. **Correction:**
+  initially reported 400/400 vitest tests passing — false. vitest has no default exclude for
+  `.claude/worktrees`, and at the time all 4 agent worktrees were still present, so every one of the
+  6 real test files got scanned 5x over (main + 4 worktrees) = 30 files / 400 test-cases reported.
+  True count was always 80 (6 files). Worktrees removed (`git worktree remove`) after merge;
+  `worktree-agent-*` branches left in place, unpushed. Fixed permanently by adding a `test.exclude`
+  for `.claude/**` in `vite.config.ts` — see the Virtual Requests entry below, where this was caught.
 - Smoke-tested only via `npm run dev` + `curl` (200 OK, no crash on load) — **no browser
   click-through** (no browser automation tool available this session). Login flow and all 4 new
   features are UNVERIFIED by an actual click-through.
@@ -101,6 +105,33 @@ than inventing new design, and to flag (not guess) genuinely undefined business 
   was invented and needs confirming against real usage.
 - Call tracking: no defined hook/action for promoting a call-log entry into the (separately
   out-of-scope) pending-admit pipeline.
+
+**Virtual Requests feature — merged (6a01e6d).** New, separate sidebar entry (not a Call Tracking
+tab, per user's explicit choice) for existing clients calling out and requesting to attend their
+program block virtually. Scope nailed down via clarifying questions: existing clients / daily
+attendance (not IND-specific, not staff calling out); separate nav item; and — after a user
+correction mid-build — **copy an already-existing Meet link off the block's calendar event, never
+create a new one.** The agent's first draft had started building `events.insert` + a broadened
+write OAuth scope before the correction landed; that was fully backed out, no scope change needed.
+
+- `VirtualRequestEntry` type (types.ts): clientId/name, date, block, reason, loggedBy, loggedAt,
+  meetLink?. Deliberately does NOT touch `AttendanceEntry`/`virtual` — user chose "just log + link"
+  over "also flip attendance," so attendance is untouched by this feature.
+- `VirtualRequestsView.tsx` + `AddVirtualRequestModal.tsx`, same list/add-modal pattern as
+  `CallTrackingView.tsx`.
+- `googleCalendar.ts`: `GCalEvent` gained `hangoutLink` (from the existing read-only
+  `fetchTodaysCalendarEvents` call's `event.hangoutLink` field) — no scope change, no write path.
+- Lookup flow: no existing convention anywhere encodes block letter (A/B) into a calendar event
+  title (only program-level detection exists), so the modal filters today's events by the client's
+  *program* and lets staff pick the right one — mirrors `AttendanceView.tsx`'s manual IND-add
+  pattern. A manual paste-link fallback is always available. Flagged, not silently assumed.
+- Bug caught during this merge: `.claude/worktrees/agent-aa4ada5c8dab22742` was left behind after
+  merging (forgot the `git worktree remove` step done for the other 4) — vitest's default excludes
+  don't cover `.claude/**`, so it silently duplicated the 6 real test files into "12 files / 160
+  tests," on top of the already-wrong 400 figure from the earlier merge round. Root cause fixed
+  properly: `vite.config.ts` now has `test.exclude` including `**/.claude/**`, not just a one-off
+  `git worktree remove`. True count confirmed stable at 80 tests / 6 files after the fix.
+- Gate at merge: `tsc --noEmit` clean, 80/80 vitest passing, `vite build` succeeds.
 
 ---
 <!-- archived from HANDOFF.md on 2026-08-15 (walking skeleton) -->

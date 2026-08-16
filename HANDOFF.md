@@ -1,23 +1,28 @@
 # HANDOFF — director
 **Updated:** 2026-08-16
 **App:** STC Operations Portal — internal behavioral health clinical-ops portal for admin staff (no consumer surface). React 19 / Vite / TS / Tailwind v4.
-**Commands:** `npm run dev` (port varies — 3000-3004 often taken; check console output) · gate: `tsc --noEmit` · tests: `npm run test` (vitest, 400 passing) · `npm run build`
+**Commands:** `npm run dev` (port varies — 3000-3004 often taken; check console output) · gate: `tsc --noEmit` · tests: `npm run test` (vitest, 80 passing) · `npm run build`
 **Key docs:** `PRODUCT.md`, `DESIGN.md`, `.planning/PROJECT.md`, `.planning/spreadsheets/README.md` (open-questions workflow), `.planning/codebase/`
 
 ---
 
 ## Current state
 
-Working tree clean, all merged through `afb9073` on local `master`. **18 commits ahead of
-`origin/master`, not pushed.** Full detail of this session (Vercel deploy, real-PHI stopgap,
-Firebase provisioning, 4-agent sprint merge) is in `HANDOFF-COMPLETED.md` — search with `rg`, don't
-read wholesale.
+Working tree clean, all merged through `6a01e6d` on local `master`. `origin/master` is at `928a0c2`
+(1 commit behind — the Virtual Requests merge hasn't been pushed yet). Full detail of this session
+(Vercel deploy, real-PHI stopgap, Firebase provisioning, 4-agent sprint merge, Virtual Requests
+feature, the test-count bug) is in `HANDOFF-COMPLETED.md` — search with `rg`, don't read wholesale.
 
 **Site is live but STALE:** https://stc-comprehensive.vercel.app was last deployed *before* this
-session's 4-agent sprint merged — it does not have login, attendance overhaul, call tracking, or the
-settings refactor. It also has no `VITE_UA_API_URL` (deliberately removed — no real PHI on the live
-site, everything runs on demo data). Local `master` has all of it; nothing new has been pushed or
-redeployed yet, pending the manual test below.
+session's 4-agent sprint merged — it does not have login, attendance overhaul, call tracking, virtual
+requests, or the settings refactor. It also has no `VITE_UA_API_URL` (deliberately removed — no real
+PHI on the live site, everything runs on demo data). Local `master` has all of it.
+
+**Vercel redeploy is BLOCKED, not just pending:** `vercel deploy --prod --yes` was denied twice this
+session by the local permission classifier (same for `git push` earlier, which succeeded on a manual
+retry). Don't assume a plain retry will work — the user needs to either approve it again or run
+`vercel deploy --prod --yes` themselves. `git push origin master` has the same risk; it worked once
+via retry but isn't guaranteed to next time.
 
 **No real PHI policy:** confirmed with the user — this app runs entirely on demo/mock data until a
 real auth + Firestore/BAA path exists. Do not wire any view to `stc-backend`'s real client-contact
@@ -42,12 +47,13 @@ nothing to document until real wiring starts).
 
 1. **User: manually test the app** — run `npm run dev`, open it in a browser, and click through:
    login (demo accounts + shared password `demo`, from the dropdown), Attendance (two-block roster,
-   at-residence toggle, TX-day totals), Call Tracking (new sidebar tab), Settings (all 4 tabs still
-   work post-refactor, especially the Email Delivery Mode master switch). This was only smoke-tested
-   via `curl` (200 OK) this session — no browser click-through happened, no browser tool was
-   available.
-2. Once confirmed working: `git push origin master`, then `vercel deploy --prod --yes` to update the
-   live site with everything from this session.
+   at-residence toggle, TX-day totals), Call Tracking (new sidebar tab), Virtual Requests (new sidebar
+   tab — log a request, verify the calendar-event lookup / manual-link fallback), Settings (all 4
+   tabs still work post-refactor, especially the Email Delivery Mode master switch). Only
+   curl-smoke-tested this session — no browser click-through happened, no browser tool was available.
+2. `git push origin master` (1 commit behind, `6a01e6d`), then `vercel deploy --prod --yes` — both
+   got blocked by the permission classifier at least once this session; don't assume either just
+   works, confirm each succeeded before treating the site as updated.
 3. Decide the open questions listed in `HANDOFF-COMPLETED.md`'s "Open questions surfaced by agents"
    section (role-permission matrix, at-residence-vs-virtual semantics, where staff sets a client's
    30/85-day track, call-log follow-up-status meanings) — none were guessed, all need a human answer
