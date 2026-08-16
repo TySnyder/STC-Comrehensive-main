@@ -33,10 +33,21 @@ interface SidebarProps {
 }
 
 const ROLE_LABELS: Record<AuthUser['role'], string> = {
+  master: 'Master Access',
   admin: 'Admin Staff Access',
   therapist: 'Therapist Access',
   intake: 'Intake Staff Access',
-  supervisor: 'Supervisor Access',
+  intern: 'Intern Access',
+};
+
+// Provisional first-pass nav visibility per role — nav visibility only, not
+// confirmed with the user yet. See HANDOFF-1.md step (f).
+const ROLE_NAV_IDS: Record<AuthUser['role'], string[] | null> = {
+  master: null, // null = all nav items
+  admin: ['dashboard', 'tasktrack', 'clients', 'attendance', 'census', 'ua', 'calltracking', 'virtualrequests', 'schedule', 'discharge', 'reports', 'staff'],
+  therapist: ['dashboard', 'tasktrack', 'clients', 'attendance', 'ua', 'discharge', 'reports', 'schedule'],
+  intake: ['dashboard', 'tasktrack', 'clients', 'calltracking', 'virtualrequests'],
+  intern: ['dashboard', 'tasktrack', 'clients', 'attendance'],
 };
 
 export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLogout }: SidebarProps) {
@@ -47,7 +58,7 @@ export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLog
     .slice(0, 2)
     .toUpperCase();
 
-  const navItems = [
+  const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tasktrack', label: 'Task Track', icon: ListChecks },
     { id: 'clients', label: 'Clients', icon: Users },
@@ -62,6 +73,8 @@ export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLog
     { id: 'staff', label: 'Staff Management', icon: Activity },
     { id: 'settings', label: 'Settings & Preferences', icon: Settings },
   ];
+  const allowedIds = ROLE_NAV_IDS[user.role];
+  const navItems = allowedIds ? allNavItems.filter(item => allowedIds.includes(item.id)) : allNavItems;
 
   return (
     <aside id="portal-sidebar" className="w-68 bg-white border-r border-[#e2e8f0] flex flex-col h-screen sticky top-0 shrink-0">

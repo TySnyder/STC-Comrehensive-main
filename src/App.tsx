@@ -44,11 +44,25 @@ import {
   INITIAL_VIRTUAL_REQUESTS,
 } from './data';
 import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode, AttendanceUpdate, CallLogEntry, VirtualRequestEntry, AttendanceTotalOverride } from './types';
-import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
+import { Client, Staff, ClinicalNote, OperationalRisk, AuthUser } from './types';
+import { RawUser } from './context/AuthContext';
 
 export default function App() {
-  const { user, logout } = useAuth();
+  const { user: rawUser, loading, logout } = useAuth();
 
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
+      </div>
+    );
+  }
+  if (!rawUser) return <LoginView />;
+
+  return <Portal rawUser={rawUser} logout={logout} />;
+}
+
+function Portal({ rawUser, logout }: { rawUser: RawUser; logout: () => void }) {
   // Navigation & Workspace states
   const [currentTab, setTab] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -58,6 +72,12 @@ export default function App() {
   // Firebase Auth + a BAA are in place (see HANDOFF.md, firebaseClient.ts).
   const [clients, setClients] = useFirestoreState<Client>('clients', INITIAL_CLIENTS, c => c.id);
   const [staffList, setStaffList] = useFirestoreState<Staff>('staff', INITIAL_STAFF, s => s.id);
+  const user: AuthUser = {
+    id: rawUser.id,
+    name: rawUser.name,
+    email: rawUser.email,
+    role: staffList.find(s => s.email.toLowerCase() === rawUser.email.toLowerCase())?.appRole ?? 'intern',
+  };
   const [risks, setRisks] = useFirestoreState<OperationalRisk>('risks', INITIAL_RISKS, r => r.id);
   const [clinicalNotes, setClinicalNotes] = useFirestoreState<ClinicalNote>('clinicalNotes', INITIAL_NOTES, n => n.id);
   const [indSessions, setIndSessions] = useFirestoreState<IndSession>('indSessions', INITIAL_IND_SESSIONS, s => s.id);
@@ -325,8 +345,6 @@ export default function App() {
       default: return 'Clinical Portal';
     }
   };
-
-  if (!user) return <LoginView />;
 
   return (
     <div id="portal-root-layout" className="flex h-screen bg-slate-50 overflow-hidden font-sans select-none antialiased">

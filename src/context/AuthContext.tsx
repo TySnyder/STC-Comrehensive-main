@@ -3,39 +3,60 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
-import { AuthUser } from '../types';
-import { useLocalStorageState } from '../utils/useLocalStorageState';
-import { authenticate } from '../utils/auth';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../utils/firebaseClient';
+import { signInWithGoogle, signOutUser } from '../utils/auth';
 
-/**
- * Minimal swappable auth surface: current user, login, logout. Backed by the
- * demo/local implementation in `utils/auth.ts` for now — this is the file to
- * update when a real backend (Firebase Auth, currently blocked, see
- * HANDOFF.md) becomes available; consumers only ever see this interface.
- */
+/** Raw signed-in identity only — no role. Role needs `staffList`, which only
+ * exists inside `Portal` once Firestore data is available (see App.tsx). */
+export interface RawUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface AuthContextValue {
-  user: AuthUser | null;
-  login: (email: string, password: string) => boolean;
+  user: RawUser | null;
+  loading: boolean;
+  error: string;
+  login: () => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useLocalStorageState<AuthUser | null>('stc-auth-user', null);
+  const [user, setUser] = useState<RawUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const login = (email: string, password: string): boolean => {
-    const resolved = authenticate(email, password);
-    if (!resolved) return false;
-    setUser(resolved);
-    return true;
+  useEffect(() => {
+    return onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(
+        firebaseUser
+          ? { id: firebaseUser.uid, name: firebaseUser.displayName ?? firebaseUser.email ?? '', email: firebaseUser.email ?? '' }
+          : null
+      );
+      setLoading(false);
+    });
+  }, []);
+
+  const login = async () => {
+    setError('');
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed.');
+    }
   };
 
-  const logout = () => setUser(null);
+  const logout = () => {
+    signOutUser();
+  };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

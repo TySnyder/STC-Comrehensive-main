@@ -17,6 +17,11 @@ export interface Staff {
   attendanceStatus: 'Present' | 'Absent' | 'Late';
   status: 'Active' | 'On Leave';
   photo: string;
+  // Portal login permission level (see AppRole, AuthContext) — matched
+  // against the signed-in Google account's email. Unset = no portal access
+  // level assigned yet, treated as 'intern' (least privilege) until an
+  // Admin/Master sets this.
+  appRole?: AppRole;
 }
 
 export interface AttendanceEntry {
@@ -259,10 +264,12 @@ export interface GridSlot {
   substituteId?: string | null;
 }
 
-// Auth scaffold (see AuthContext). Roles designed in from day 1 so the app
-// can expand from single-user to full staff without a data-model rework —
-// no permission gating per role is enforced yet, that's a future slice.
-export type AppRole = 'admin' | 'therapist' | 'intake' | 'supervisor';
+// Real login now (Google Sign-In restricted to @treatmentconsultants.net —
+// see utils/auth.ts, AuthContext.tsx). Role isn't part of the Google
+// account — it's resolved by matching the signed-in email against a Staff
+// record's `appRole` (see Staff.appRole below); unmatched/unset defaults to
+// the least-privileged role ('intern'), never a guess toward more access.
+export type AppRole = 'intern' | 'admin' | 'intake' | 'therapist' | 'master';
 
 export interface AuthUser {
   id: string;

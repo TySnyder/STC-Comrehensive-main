@@ -5,10 +5,8 @@
 
 import { initializeApp } from 'firebase/app';
 import { initializeFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
-// TODO(PHI): Firestore rules are open/permissive for now (demo data only, no
-// real Firebase Auth wired in yet). Must be locked down before any real
-// client data flows through this — see HANDOFF.md.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -26,3 +24,4 @@ const app = initializeApp(firebaseConfig);
 // (which silently drops them). Firestore's default behavior instead throws on
 // `undefined`, so without this the very first optional-field write crashes.
 export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
+export const auth = getAuth(app);
