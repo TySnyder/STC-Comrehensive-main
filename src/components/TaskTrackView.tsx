@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Client, IndSession, UaAssignment, CallResult, EmailDeliveryMode } from '../types';
 import { GCalEvent, requestGoogleCalendarToken, fetchTodaysCalendarEvents } from '../utils/googleCalendar';
-import { getTodaysTimeline } from '../utils/timelineData';
+import { getTodaysTimeline, getTodaysPriorities, getScheduleDay } from '../utils/timelineData';
 import { sendDailyReminders } from '../utils/dailyRemindersApi';
 
 // Seed data is dated 2026-06-15 (see data.ts); Task Track reads "today" against
@@ -178,6 +178,8 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
 
   const [railView, setRailView] = useState<'timeline' | 'calendar'>('timeline');
   const [timelineEvents, setTimelineEvents] = useState(() => getTodaysTimeline());
+  const [todaysPriorities] = useState(() => getTodaysPriorities());
+  const [scheduleDay] = useState(() => getScheduleDay());
   useEffect(() => {
     const timer = setInterval(() => setTimelineEvents(getTodaysTimeline()), 60000);
     return () => clearInterval(timer);
@@ -432,7 +434,13 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
         <div className="col-span-12 lg:col-span-3">
           <div className="bg-white border border-slate-200 rounded-xl shadow-xs flex flex-col h-full overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-200 bg-[#f8fafc] flex items-center justify-between shrink-0">
-              <h3 className="text-sm font-bold text-slate-800">{railView === 'timeline' ? "Today's Schedule" : 'Google Calendar'}</h3>
+              <h3 className="text-sm font-bold text-slate-800">
+                {railView === 'timeline'
+                  ? scheduleDay.isPreview
+                    ? `${scheduleDay.dayName} Preview`
+                    : "Today's Schedule"
+                  : 'Google Calendar'}
+              </h3>
               <div className="flex bg-slate-100 border border-slate-200 rounded-md p-0.5">
                 <button
                   onClick={() => setRailView('timeline')}
@@ -456,25 +464,64 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
             </div>
 
             {railView === 'timeline' ? (
-              <div className="flex-1 p-4 overflow-y-auto max-h-[720px] relative">
-                <div className="absolute left-[54px] top-4 bottom-4 w-px bg-slate-200" />
-                <div className="flex flex-col gap-5 relative">
-                  {timelineEvents.map((ev, i) => (
-                    <div key={i} className={`flex gap-3 ${ev.state === 'past' ? 'opacity-50' : ''}`}>
-                      <div className={`font-mono w-11 text-right pt-0.5 text-[10px] ${ev.state === 'current' ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
-                        {ev.time}
+              <div className="flex-1 p-4 overflow-y-auto max-h-[720px]">
+                {todaysPriorities.length > 0 && (
+                  <div className="mb-4 pb-4 border-b border-slate-200 flex flex-col gap-2.5">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Priorities</h4>
+                    {todaysPriorities.map((p, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span
+                          className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full mt-0.5 ${
+                            p.priority === 'P1' ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600'
+                          }`}
+                        >
+                          {p.priority}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-800 leading-tight">{p.title}</p>
+                          {p.subtitle && <p className="text-[11px] text-slate-400 mt-0.5">{p.subtitle}</p>}
+                        </div>
                       </div>
-                      <div
-                        className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 border-2 border-white ${
-                          ev.state === 'current' ? 'bg-indigo-600 ring-2 ring-indigo-100' : ev.state === 'past' ? 'bg-slate-300' : 'bg-white border-slate-300'
-                        }`}
-                      />
-                      <div className="flex-1 pb-1">
-                        <h4 className="text-xs font-semibold text-slate-800">{ev.title}</h4>
-                        {ev.subtitle && <p className="text-[11px] text-slate-400">{ev.subtitle}</p>}
+                    ))}
+                  </div>
+                )}
+                <div className="relative">
+                  <div className="absolute left-[54px] top-1 bottom-1 w-px bg-slate-200" />
+                  <div className="flex flex-col gap-5 relative">
+                    {timelineEvents.map((ev, i) => (
+                      <div key={i} className={`flex gap-3 ${ev.state === 'past' ? 'opacity-50' : ''}`}>
+                        <div className={`font-mono w-11 text-right pt-0.5 text-[10px] ${ev.state === 'current' ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
+                          {ev.time}
+                        </div>
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 border-2 border-white ${
+                            ev.state === 'current'
+                              ? 'bg-indigo-600 ring-2 ring-indigo-100'
+                              : ev.state === 'past'
+                              ? 'bg-slate-300'
+                              : ev.priority === 'P1'
+                              ? 'bg-white border-red-400'
+                              : 'bg-white border-slate-300'
+                          }`}
+                        />
+                        <div className="flex-1 pb-1">
+                          <div className="flex items-center gap-1.5">
+                            {ev.priority && (
+                              <span
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                  ev.priority === 'P1' ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600'
+                                }`}
+                              >
+                                {ev.priority}
+                              </span>
+                            )}
+                            <h4 className="text-xs font-semibold text-slate-800">{ev.title}</h4>
+                          </div>
+                          {ev.subtitle && <p className="text-[11px] text-slate-400 mt-0.5">{ev.subtitle}</p>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : gcalStatus === 'connected' ? (
