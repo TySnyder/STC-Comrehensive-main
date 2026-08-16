@@ -33,7 +33,7 @@ interface SidebarProps {
 }
 
 export const ROLE_LABELS: Record<AuthUser['role'], string> = {
-  master: 'Master Access',
+  master: 'Master Admin',
   admin: 'Admin Staff Access',
   therapist: 'Therapist Access',
   intake: 'Intake Staff Access',

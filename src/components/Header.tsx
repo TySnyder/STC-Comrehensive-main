@@ -293,25 +293,32 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
         {/* Signed-in user */}
         <div id="header-user-badge" className="flex items-center gap-2.5">
           {(() => {
-            const photo = staff.find(s => s.email.toLowerCase() === user.email.toLowerCase())?.photo;
+            const matchedStaff = staff.find(s => s.email.toLowerCase() === user.email.toLowerCase());
             const initials = user.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
-            return photo ? (
-              <img
-                src={photo}
-                alt={user.name}
-                className="w-8.5 h-8.5 rounded-full border border-slate-200 object-cover"
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div className="w-8.5 h-8.5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-xs border border-indigo-200">
-                {initials}
-              </div>
+            const subtitle = matchedStaff?.role
+              ? `${matchedStaff.role} and ${ROLE_LABELS[user.role]}`
+              : ROLE_LABELS[user.role];
+            return (
+              <>
+                {matchedStaff?.photo ? (
+                  <img
+                    src={matchedStaff.photo}
+                    alt={user.name}
+                    className="w-8.5 h-8.5 rounded-full border border-slate-200 object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-8.5 h-8.5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-xs border border-indigo-200">
+                    {initials}
+                  </div>
+                )}
+                <div className="text-left hidden md:block">
+                  <h4 className="text-xs font-bold text-slate-700 leading-tight">{user.name}</h4>
+                  <p className="text-[9px] font-mono text-indigo-600 font-bold uppercase tracking-wider leading-none">{subtitle}</p>
+                </div>
+              </>
             );
           })()}
-          <div className="text-left hidden md:block">
-            <h4 className="text-xs font-bold text-slate-700 leading-tight">{user.name}</h4>
-            <p className="text-[9px] font-mono text-indigo-600 font-bold uppercase tracking-wider leading-none">{ROLE_LABELS[user.role]}</p>
-          </div>
         </div>
 
       </div>
