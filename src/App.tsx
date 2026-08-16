@@ -20,6 +20,7 @@ import CensusView from './components/CensusView';
 import ScheduleView from './components/ScheduleView';
 import UaTrackingView from './components/UaTrackingView';
 import TaskTrackView, { TaskTrackTicker } from './components/TaskTrackView';
+import CallTrackingView from './components/CallTrackingView';
 import DischargeClientModal from './components/DischargeClientModal';
 import { applyDischarge, reverseDischarge, updateEpisode, readmitClient, DischargeInput } from './utils/episodeHelpers';
 import { useLocalStorageState } from './utils/useLocalStorageState';
@@ -37,8 +38,9 @@ import {
   INITIAL_SESSIONS,
   INITIAL_SLOTS,
   DEFAULT_EMAIL_SIGNATURE,
+  INITIAL_CALL_LOG,
 } from './data';
-import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode, AttendanceUpdate } from './types';
+import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode, AttendanceUpdate, CallLogEntry } from './types';
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
@@ -112,6 +114,7 @@ export default function App() {
     if (effectiveEmailMode === 'send' && !emailSendMaster) setEmailDeliveryModeRaw('draft');
   };
   const [emailSignature, setEmailSignature] = useLocalStorageState<string>('stc-email-signature', DEFAULT_EMAIL_SIGNATURE);
+  const [callLog, setCallLog] = useLocalStorageState<CallLogEntry[]>('stc-call-log', INITIAL_CALL_LOG);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [dischargingClient, setDischargingClient] = useState<Client | null>(null);
 
@@ -220,6 +223,14 @@ export default function App() {
     setIndSessions(prev => [...prev, session]);
   };
 
+  const handleAddCallLogEntry = (entry: CallLogEntry) => {
+    setCallLog(prev => [entry, ...prev]);
+  };
+
+  const handleUpdateCallLogEntry = (id: string, updates: Partial<CallLogEntry>) => {
+    setCallLog(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
   const handleSaveCensusEntry = (entry: CensusEntry) => {
     setCensusEntries(prev => {
       const idx = prev.findIndex(e => e.id === entry.id);
@@ -285,6 +296,7 @@ export default function App() {
       case 'attendance': return 'Attendance Overview';
       case 'census': return 'Weekly Census';
       case 'ua': return 'UA Tracking';
+      case 'calltracking': return 'Call Tracking';
       case 'schedule': return 'Program Schedule Builder';
       case 'discharge': return 'Discharge Planning & Workspace';
       case 'reports': return 'Clinical Analytics & Outcomes';
@@ -400,6 +412,14 @@ export default function App() {
                 censusEntries={censusEntries}
                 assignments={uaAssignments}
                 setAssignments={setUaAssignments}
+              />
+            )}
+
+            {currentTab === 'calltracking' && (
+              <CallTrackingView
+                callLog={callLog}
+                onAddEntry={handleAddCallLogEntry}
+                onUpdateEntry={handleUpdateCallLogEntry}
               />
             )}
 
