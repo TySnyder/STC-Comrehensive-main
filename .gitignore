@@ -16,3 +16,4 @@ live data/
 
 # Design reference exports (Stitch, etc.) — scratch input, not source
 .stitch/
+.vercel

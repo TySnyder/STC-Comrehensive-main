@@ -66,7 +66,9 @@ The Office Manager can complete every daily clinical operations task — attenda
 
 **Attendance workflow:** Therapists email attendance reports daily (not standardized). Office Manager reviews each email and manually enters data in the portal. No auto-parsing.
 
-**Graduation target:** 85 TX days required. Running totals tracked per client.
+**Graduation target:** each client selects a 30-day or 85-day track (at admission — exact
+UI/flow for where this is set is still undefined, see open items). Running totals tracked
+per client against whichever track that client is on, not a fixed 85 for everyone.
 
 **Attendance fields (from live spreadsheets):**
 - Present / Absent (binary)
