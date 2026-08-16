@@ -148,6 +148,22 @@ export interface CallLogEntry {
   followUpStatus: CallFollowUpStatus;
 }
 
+// Existing-client request to attend their program block virtually instead of
+// in person (distinct from CallLogEntry, which is prospective-client intake
+// calls). Logging a request never flips AttendanceEntry.virtual — that's a
+// deliberate separate step staff take in Attendance, not automated here.
+export interface VirtualRequestEntry {
+  id: string;
+  clientId: string;
+  clientName: string;
+  date: string;          // ISO date of the program block being attended virtually
+  block?: 'A' | 'B';      // same two-block convention as AttendanceEntry
+  reason: string;
+  loggedBy: string;       // staff member who logged the call-out
+  loggedAt: string;       // ISO timestamp the entry was created
+  meetLink?: string;      // pulled from the block's existing recurring GCal event's hangoutLink, if found
+}
+
 export interface UaAssignment {
   id: string;
   clientId: string;

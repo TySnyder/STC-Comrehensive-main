@@ -14,6 +14,7 @@ export interface GCalEvent {
   title: string;
   start: string; // display time, e.g. "9:00 AM" or "All day"
   end: string;
+  hangoutLink?: string; // pre-existing Google Meet link on the event, if staff attached one
 }
 
 interface TokenResponse {
@@ -110,6 +111,7 @@ export async function fetchTodaysCalendarEvents(accessToken: string): Promise<GC
       title: ev.summary || '(No title)',
       start: allDay ? 'All day' : new Date(startRaw).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
       end: allDay ? '' : new Date(endRaw).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
+      hangoutLink: ev.hangoutLink || undefined,
     };
   });
 }

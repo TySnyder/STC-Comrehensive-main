@@ -20,6 +20,7 @@ import {
   ListChecks,
   LogOut,
   Phone,
+  Video,
 } from 'lucide-react';
 import { AuthUser } from '../types';
 
@@ -54,6 +55,7 @@ export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLog
     { id: 'census', label: 'Weekly Census', icon: CalendarDays },
     { id: 'ua', label: 'UA Tracking', icon: FlaskConical },
     { id: 'calltracking', label: 'Call Tracking', icon: Phone },
+    { id: 'virtualrequests', label: 'Virtual Requests', icon: Video },
     { id: 'schedule', label: 'Program Schedule', icon: Calendar },
     { id: 'discharge', label: 'Discharge Planning', icon: TrendingUp },
     { id: 'reports', label: 'Clinical Analytics', icon: FileSpreadsheet },

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Staff, Client, ClinicalNote, OperationalRisk, IndSession, CensusEntry, InsuranceBillingNote, ProgramBlock, VirtualMode, SessionType, GridSlot, CallLogEntry } from './types';
+import { Staff, Client, ClinicalNote, OperationalRisk, IndSession, CensusEntry, InsuranceBillingNote, ProgramBlock, VirtualMode, SessionType, GridSlot, CallLogEntry, VirtualRequestEntry } from './types';
 
 export const INITIAL_STAFF: Staff[] = [
   {
@@ -860,6 +860,30 @@ export const INITIAL_CALL_LOG: CallLogEntry[] = [
     insurance: 'UnitedHealthcare',
     issuesNotes: 'Left voicemail requesting callback re: program info, no answer on return call.',
     followUpStatus: 'Closed',
+  },
+];
+
+export const INITIAL_VIRTUAL_REQUESTS: VirtualRequestEntry[] = [
+  {
+    id: 'vreq-1',
+    clientId: 'client-1',
+    clientName: 'Sarah Jenkins',
+    date: '2026-08-15',
+    block: 'A',
+    reason: 'Car trouble — no ride to Santa Fe site today.',
+    loggedBy: 'Maria Ortiz',
+    loggedAt: '2026-08-15T13:05:00-06:00',
+    meetLink: 'https://meet.google.com/abc-defg-hij',
+  },
+  {
+    id: 'vreq-2',
+    clientId: 'client-2',
+    clientName: 'Liam Sterling',
+    date: '2026-08-14',
+    block: 'B',
+    reason: 'Mild cold symptoms, doesn’t want to risk the group room.',
+    loggedBy: 'James Reyes',
+    loggedAt: '2026-08-14T10:40:00-06:00',
   },
 ];
 

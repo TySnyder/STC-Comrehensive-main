@@ -21,6 +21,7 @@ import ScheduleView from './components/ScheduleView';
 import UaTrackingView from './components/UaTrackingView';
 import TaskTrackView, { TaskTrackTicker } from './components/TaskTrackView';
 import CallTrackingView from './components/CallTrackingView';
+import VirtualRequestsView from './components/VirtualRequestsView';
 import DischargeClientModal from './components/DischargeClientModal';
 import { applyDischarge, reverseDischarge, updateEpisode, readmitClient, DischargeInput } from './utils/episodeHelpers';
 import { useLocalStorageState } from './utils/useLocalStorageState';
@@ -39,8 +40,9 @@ import {
   INITIAL_SLOTS,
   DEFAULT_EMAIL_SIGNATURE,
   INITIAL_CALL_LOG,
+  INITIAL_VIRTUAL_REQUESTS,
 } from './data';
-import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode, AttendanceUpdate, CallLogEntry } from './types';
+import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode, AttendanceUpdate, CallLogEntry, VirtualRequestEntry } from './types';
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
@@ -115,6 +117,7 @@ export default function App() {
   };
   const [emailSignature, setEmailSignature] = useLocalStorageState<string>('stc-email-signature', DEFAULT_EMAIL_SIGNATURE);
   const [callLog, setCallLog] = useLocalStorageState<CallLogEntry[]>('stc-call-log', INITIAL_CALL_LOG);
+  const [virtualRequests, setVirtualRequests] = useLocalStorageState<VirtualRequestEntry[]>('stc-virtual-requests', INITIAL_VIRTUAL_REQUESTS);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [dischargingClient, setDischargingClient] = useState<Client | null>(null);
 
@@ -229,6 +232,10 @@ export default function App() {
 
   const handleUpdateCallLogEntry = (id: string, updates: Partial<CallLogEntry>) => {
     setCallLog(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const handleAddVirtualRequest = (entry: VirtualRequestEntry) => {
+    setVirtualRequests(prev => [entry, ...prev]);
   };
 
   const handleSaveCensusEntry = (entry: CensusEntry) => {
@@ -420,6 +427,15 @@ export default function App() {
                 callLog={callLog}
                 onAddEntry={handleAddCallLogEntry}
                 onUpdateEntry={handleUpdateCallLogEntry}
+              />
+            )}
+
+            {currentTab === 'virtualrequests' && (
+              <VirtualRequestsView
+                requests={virtualRequests}
+                clients={clients}
+                staffNames={staffList.map(s => s.name)}
+                onAddEntry={handleAddVirtualRequest}
               />
             )}
 
