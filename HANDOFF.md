@@ -8,21 +8,28 @@
 
 ## Current state
 
-Working tree clean, all merged through `6a01e6d` on local `master`. `origin/master` is at `928a0c2`
-(1 commit behind — the Virtual Requests merge hasn't been pushed yet). Full detail of this session
-(Vercel deploy, real-PHI stopgap, Firebase provisioning, 4-agent sprint merge, Virtual Requests
-feature, the test-count bug) is in `HANDOFF-COMPLETED.md` — search with `rg`, don't read wholesale.
+Working tree clean, `origin/master` and Vercel production are both current as of `443d100` — pushed
+and deployed successfully this session (the permission-classifier blocks from earlier were transient;
+retries worked). Full detail (Vercel deploy, real-PHI stopgap, Firebase provisioning, 4-agent sprint
+merge, Virtual Requests feature, the test-count bug, this session's browser test pass) is in
+`HANDOFF-COMPLETED.md` — search with `rg`, don't read wholesale.
 
-**Site is live but STALE:** https://stc-comprehensive.vercel.app was last deployed *before* this
-session's 4-agent sprint merged — it does not have login, attendance overhaul, call tracking, virtual
-requests, or the settings refactor. It also has no `VITE_UA_API_URL` (deliberately removed — no real
-PHI on the live site, everything runs on demo data). Local `master` has all of it.
+**Browser-tested live on production via ego-browser this session — login, Attendance (two-block
+roster, at-residence toggle confirmed interactive), Call Tracking, Virtual Requests, Settings
+(Email Delivery Mode master switch survived its merge correctly), and Clients' TX-day/graduation-track
+display (`4/30` and `6/85` both confirmed rendering) all work.** One real bug found — see below.
 
-**Vercel redeploy is BLOCKED, not just pending:** `vercel deploy --prod --yes` was denied twice this
-session by the local permission classifier (same for `git push` earlier, which succeeded on a manual
-retry). Don't assume a plain retry will work — the user needs to either approve it again or run
-`vercel deploy --prod --yes` themselves. `git push origin master` has the same risk; it worked once
-via retry but isn't guaranteed to next time.
+**BUG — Google Calendar OAuth `origin_mismatch`, blocks 2 features:** clicking "Connect Calendar" (IND
+roster) or "Look up from Google Calendar" (Virtual Requests) hangs forever on "Connecting…" with no
+error shown. Root cause confirmed via direct reproduction: OAuth client
+`600351493590-...apps.googleusercontent.com` (GCP project `stc-main-dashboard`) doesn't have the
+current origin registered — reproduced on both `http://localhost:3001` and (untested but same client)
+`https://stc-comprehensive.vercel.app`. Fix: **Google Cloud Console → this project →
+console.cloud.google.com/auth/audience → Authorized JavaScript origins → add
+`https://stc-comprehensive.vercel.app` and `http://localhost:3000` through `3004`** (dev port varies).
+Separate, smaller app-bug on top: the UI has no error/timeout state for a failed token request — even
+after the origin is fixed, a future failure will still hang silently. Worth adding an error branch to
+whatever hook wraps `google.accounts.oauth2.initTokenClient` in `googleCalendar.ts`.
 
 **No real PHI policy:** confirmed with the user — this app runs entirely on demo/mock data until a
 real auth + Firestore/BAA path exists. Do not wire any view to `stc-backend`'s real client-contact
@@ -45,16 +52,9 @@ nothing to document until real wiring starts).
 
 ## Exact next action
 
-1. **User: manually test the app** — run `npm run dev`, open it in a browser, and click through:
-   login (demo accounts + shared password `demo`, from the dropdown), Attendance (two-block roster,
-   at-residence toggle, TX-day totals), Call Tracking (new sidebar tab), Virtual Requests (new sidebar
-   tab — log a request, verify the calendar-event lookup / manual-link fallback), Settings (all 4
-   tabs still work post-refactor, especially the Email Delivery Mode master switch). Only
-   curl-smoke-tested this session — no browser click-through happened, no browser tool was available.
-2. `git push origin master` (1 commit behind, `6a01e6d`), then `vercel deploy --prod --yes` — both
-   got blocked by the permission classifier at least once this session; don't assume either just
-   works, confirm each succeeded before treating the site as updated.
-3. Decide the open questions listed in `HANDOFF-COMPLETED.md`'s "Open questions surfaced by agents"
+1. **Fix the OAuth origin_mismatch bug** (see above) — add the missing Authorized JavaScript origins
+   in Google Cloud Console, then re-test "Connect Calendar" / "Look up from Google Calendar" for real.
+2. Decide the open questions listed in `HANDOFF-COMPLETED.md`'s "Open questions surfaced by agents"
    section (role-permission matrix, at-residence-vs-virtual semantics, where staff sets a client's
    30/85-day track, call-log follow-up-status meanings) — none were guessed, all need a human answer
    before the affected features are considered finished rather than scaffolded.

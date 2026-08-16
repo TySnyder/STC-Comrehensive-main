@@ -106,6 +106,40 @@ than inventing new design, and to flag (not guess) genuinely undefined business 
 - Call tracking: no defined hook/action for promoting a call-log entry into the (separately
   out-of-scope) pending-admit pipeline.
 
+**Pushed + redeployed (443d100).** `git push origin master` and `vercel deploy --prod --yes` both got
+blocked once by the local permission classifier, then succeeded on retry after the user re-approved.
+Production (https://stc-comprehensive.vercel.app) now matches local master.
+
+**Browser test pass via ego-browser (mcp skill) against production.** First real click-through of
+this session's work (everything before this was tsc/vitest/build-only). Logged in as each concept
+proven with the `admin@stc.demo` demo account (password `demo`, picked from the login dropdown).
+Confirmed working: Dashboard, sidebar shows all new nav items; Attendance's two-block roster with
+per-block PRESENT/ABSENT/TARDY/VIRTUAL/EXCUSED counts, at-residence toggle (clicked, visually
+confirmed the house icon activates); Call Tracking table + filters + "Log Call" modal; Virtual
+Requests table (one entry with a working `Join` link, one correctly showing "NO LINK FOUND"), "Log
+Virtual Request" modal with client picker; Settings' Clinical Workflows tab — confirmed the Email
+Delivery Mode master switch (Draft/Send toggle) survived the earlier merge-conflict reconciliation
+into `ClinicalWorkflowsTab.tsx` correctly; Clients' TX-day/graduation-track line, confirmed both
+`4/30` (Derek Pham, Rachel Kim) and multiple `/85` clients render correctly from the per-client field
+built earlier in the sprint (not hardcoded).
+
+**Bug found: OAuth `origin_mismatch` blocks both "Connect Calendar" (Attendance IND roster) and "Look
+up from Google Calendar" (Virtual Requests).** Clicking either hangs forever on "Connecting…", no
+error surfaced. Root-caused by direct reproduction, not guessed: used CDP `Target.getTargets` to
+confirm zero popup ever opened when tested against production (synthetic `.click()` in `js()` doesn't
+count as a trusted gesture, so Chrome's popup blocker silently ate it there); switched to ego-browser's
+real `click()` helper for a second, worktree-clean localhost repro, which DID open a popup — landing on
+`accounts.google.com/signin/oauth/error?authError=...origin_mismatch...`, decoded payload confirming
+`origin: http://localhost:3001` is not a registered origin on OAuth client
+`600351493590-let1h8hhv7o586r6ermetsgk4drmlv0q.apps.googleusercontent.com` (GCP project
+`stc-main-dashboard`). User independently navigated to that exact client's Authorized-origins page
+(`console.cloud.google.com/auth/audience?project=stc-main-dashboard`) in their own browser during this
+session and later pasted the literal `origin_mismatch` error, confirming the same finding from the
+production side too. Not yet fixed — needs the origin added in Cloud Console (see director). Also
+flagged: the app itself has no timeout/error UI for a failed token request — worth hardening
+`googleCalendar.ts` regardless of the origin fix, since this exact failure mode (silent infinite
+"Connecting…") will recur for any future auth error there.
+
 **Virtual Requests feature — merged (6a01e6d).** New, separate sidebar entry (not a Call Tracking
 tab, per user's explicit choice) for existing clients calling out and requesting to attend their
 program block virtually. Scope nailed down via clarifying questions: existing clients / daily
