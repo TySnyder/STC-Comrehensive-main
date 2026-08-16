@@ -8,26 +8,43 @@
 
 ## Current state
 
-- Clean-code refactor + all spreadsheet-mapping build targets: **committed** (`8f0d116`, `402456e`). Handoff system migrated to root director/archive format (`d85612c`).
-- **Task Track view built and committed** (`285985d`): new nav page — ticker bar, tabbed Daily Reminders/UA panel (real `IndSession`/`UaAssignment` data, functional call-result dropdown), Groups Today, Ongoing/Completed↔Upcoming tasks, right-rail Timeline↔Google Calendar toggle. `src/components/TaskTrackView.tsx`.
-- **Committed** (`317f9cb`):
-  - Nav order: Dashboard first, Task Track second (`Sidebar.tsx`).
-  - **Google Calendar OAuth is live and confirmed working** (real user sign-in tested end to end). Read-only, Google Identity Services token client, no backend. `src/utils/googleCalendar.ts`, Client ID in `.env` (gitignored) as `VITE_GOOGLE_CLIENT_ID`. Authorized JS origin `http://localhost:3004` registered on the OAuth client in Google Cloud Console (client name "STC Dashboard", id `600351493590-...`). **Note:** a `google.env` file with the OAuth client's real Client Secret exists locally at repo root — gitignored, never committed, and not needed by this flow (GIS token client only uses the Client ID). Keep it out of git regardless.
-  - **Global Email Delivery Mode** (`draft` | `send`, default `draft`) — `EmailDeliveryMode` type in `types.ts`, state lifted to `App.tsx` (`useLocalStorageState('stc-email-delivery-mode', ...)`), toggle UI in Settings → Clinical Workflows. Task Track's two email stub buttons (`handleSendDailyReminders`, `handleGenerateEmails`) already branch on it — actual send/draft dispatch (Gmail API) is still a `TODO`, not implemented.
-  - **Email signature** — `DEFAULT_EMAIL_SIGNATURE` in `data.ts` (Tyler's real signature, not PHI — office contact info), persisted via `stc-email-signature`, editable textarea + live preview in Settings → Clinical Workflows.
-  - Header: Fingerprint clock-in icon added next to the bell (local toggle only, not wired to any attendance data yet); `header-controls` gap halved (`gap-6`→`gap-3`) per user request.
-- Gate green (`tsc --noEmit` clean, verified via Playwright smoke checks). Not pushed to `origin` yet.
+Working tree clean, all committed through `f8b40cb`, gate green. Not pushed to `origin`.
+Full detail of everything through today's session (Task Track, Google Calendar OAuth,
+Client Forms picker, live timeline data, email delivery mode + master-switch safety
+fix) is in `HANDOFF-COMPLETED.md` — search with `rg`, don't read wholesale.
 
-## Next steps
+## Next steps — Google Sheets + Apps Script "walking skeleton" (IN PROGRESS)
 
-**Big decision made, not started: Google Sheets + Apps Script backend.** Scoped with the user, deliberately deferred (their words: "we can wait to go to GAS"):
+Scoped with the user, now starting. Goal: prove the whole path — new Sheet, new
+Apps Script Web App, real HTTP call from this React app, round-trip data — with the
+**smallest possible slice** before expanding to the full migration.
 
-- New Apps Script Web App = new HTTP API layer for this React app (NOT extending the existing `stc_dashboard_v4` GAS project — that stays separate).
+**Decisions already made (don't re-litigate):**
+
+- New Apps Script Web App = new project, NOT extending `stc_dashboard_v4`.
 - Backs onto a **brand-new Google Sheet**, not any live clinic operational sheet.
-- Scope: **full migration** — clients, staff, census, attendance, everything currently in `INITIAL_*` seed data / localStorage moves to this backend, not just Task Track/UA.
-- User already has `clasp` installed and logged in, ready to scaffold a new Apps Script project when we resume.
-- This is the real answer to every `TODO(PHI)` comment in the code (UA assignments off localStorage, etc.) — when this lands, revisit those comments.
-- **Not started at all** — no Apps Script project created, no API contract designed, no client-side fetch layer written. Whoever picks this up next should treat it as a fresh design task: figure out the Sheet schema, the Apps Script endpoints, auth model (who can call it), and a migration path off `useLocalStorageState`/seed data per view — don't assume anything from this bullet list beyond the three decisions above.
+- First slice = **UA assignments** (the one already flagged `TODO(PHI)` in this app's code).
+- Eventually full migration (clients, staff, census, attendance, everything) — but not this pass.
+- `clasp` is installed and logged in on this machine, ready to use.
+
+**Defaults I'm proceeding with (flag if wrong, not blocking on confirmation):**
+
+- New project lives at `/Users/ts/github-sites/stc-backend`, sibling to this repo and `stc_dashboard_v4`.
+- `clasp create --type sheets` to get a bound Sheet + Script together in one step.
+- Web App deployed with "Anyone, even anonymous" access for this skeleton pass only —
+  **not safe once real client data flows through it.** Auth model is a real decision
+  to make before this graduates past skeleton/placeholder data.
+- Skeleton scope: `doGet` returns UA assignments as JSON, `doPost` upserts one. React
+  side gets a small proof-of-life call (not a full replacement of `useLocalStorageState`
+  yet — that's the next increment after the skeleton proves out).
+
+**Progress this pass:** (update as steps complete)
+
+- [ ] `stc-backend` project scaffolded via clasp
+- [ ] Sheet schema for UA assignments
+- [ ] `doGet`/`doPost` deployed as Web App
+- [ ] React util (`fetch` calls) + one proof-of-life wiring point
+- [ ] Confirmed working end-to-end from the actual browser (not just curl)
 
 ## Open items (older, still unresolved)
 
@@ -39,4 +56,10 @@ Small (from spreadsheet-mapping Q&A, see archive / `.planning/spreadsheets/`):
 
 Deferred cleanups (optional): SettingsView import-wizard flag state → discriminated union; SettingsView tab panels → separate components.
 
-Standing `TODO(PHI)`: UA assignments etc. must move off localStorage before live data — see Google Sheets/Apps Script plan above.
+**Deferred, not started:** bringing the `stc_dashboard_v4` Attendance Audit (5-phase,
+Census/Running Attendance reconciliation, immutable snapshots) into this app's Weekly
+Census page. User said "nothing for now" when offered three approaches (thin API on
+the existing dashboard / rebuild against this app's own attendance data / just
+document it) — revisit by asking again, don't assume which approach.
+
+Standing `TODO(PHI)`: UA assignments etc. must move off localStorage before live data — this is exactly what the walking skeleton above is starting to address.
