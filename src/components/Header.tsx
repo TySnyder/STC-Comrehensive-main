@@ -5,9 +5,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Bell, Clock, Calendar, CheckCircle, AlertCircle, User, Users, Fingerprint, Send, PenLine } from 'lucide-react';
-import { Client, Staff, EmailDeliveryMode } from '../types';
+import { Client, Staff, EmailDeliveryMode, AuthUser } from '../types';
 import { CLOCK_IN_RECIPIENTS } from '../data';
 import { requestGmailToken } from '../utils/gmail';
+import { ROLE_LABELS } from './Sidebar';
 
 interface HeaderProps {
   title: string;
@@ -16,6 +17,7 @@ interface HeaderProps {
   openNoteModal: () => void;
   clients: Client[];
   staff: Staff[];
+  user: AuthUser;
   onSelectClient: (client: Client) => void;
   onNavigateToStaff: () => void;
   emailDeliveryMode: EmailDeliveryMode;
@@ -24,7 +26,7 @@ interface HeaderProps {
   onDispatchEmail: (token: string, opts: { to: string[]; subject: string; body: string }) => Promise<void>;
 }
 
-export default function Header({ title, searchQuery, setSearchQuery, openNoteModal, clients, staff, onSelectClient, onNavigateToStaff, emailDeliveryMode, setEmailDeliveryMode, emailSendMaster, onDispatchEmail }: HeaderProps) {
+export default function Header({ title, searchQuery, setSearchQuery, openNoteModal, clients, staff, user, onSelectClient, onNavigateToStaff, emailDeliveryMode, setEmailDeliveryMode, emailSendMaster, onDispatchEmail }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [clockedIn, setClockedIn] = useState(false);
@@ -288,17 +290,27 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
         {/* Separator */}
         <span className="w-px h-6 bg-slate-200" />
 
-        {/* Dr. Profile Snapshot */}
+        {/* Signed-in user */}
         <div id="header-user-badge" className="flex items-center gap-2.5">
-          <img
-            src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=100&h=100&q=80"
-            alt="Lead Professional"
-            className="w-8.5 h-8.5 rounded-full border border-slate-200"
-            referrerPolicy="no-referrer"
-          />
+          {(() => {
+            const photo = staff.find(s => s.email.toLowerCase() === user.email.toLowerCase())?.photo;
+            const initials = user.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+            return photo ? (
+              <img
+                src={photo}
+                alt={user.name}
+                className="w-8.5 h-8.5 rounded-full border border-slate-200 object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-8.5 h-8.5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-xs border border-indigo-200">
+                {initials}
+              </div>
+            );
+          })()}
           <div className="text-left hidden md:block">
-            <h4 className="text-xs font-bold text-slate-700 leading-tight">Admin Staff</h4>
-            <p className="text-[9px] font-mono text-indigo-600 font-bold uppercase tracking-wider leading-none">Clinical Lead</p>
+            <h4 className="text-xs font-bold text-slate-700 leading-tight">{user.name}</h4>
+            <p className="text-[9px] font-mono text-indigo-600 font-bold uppercase tracking-wider leading-none">{ROLE_LABELS[user.role]}</p>
           </div>
         </div>
 

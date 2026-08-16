@@ -32,7 +32,7 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
-const ROLE_LABELS: Record<AuthUser['role'], string> = {
+export const ROLE_LABELS: Record<AuthUser['role'], string> = {
   master: 'Master Access',
   admin: 'Admin Staff Access',
   therapist: 'Therapist Access',
@@ -51,13 +51,6 @@ const ROLE_NAV_IDS: Record<AuthUser['role'], string[] | null> = {
 };
 
 export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLogout }: SidebarProps) {
-  const initials = user.name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tasktrack', label: 'Task Track', icon: ListChecks },
@@ -124,27 +117,14 @@ export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLog
         >
           <span className="text-lg font-mono leading-none">+</span> Add Clinical Note
         </button>
-        <div id="sidebar-footer-credentials" className="mt-4 flex items-center gap-2.5 px-1.5">
-          <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-xs border border-indigo-200">
-            {initials}
-          </div>
-          <div className="truncate flex-1">
-            <p className="text-xs font-bold text-slate-700 truncate leading-none mb-1">
-              {user.name}
-            </p>
-            <p className="text-[10px] text-slate-400 truncate leading-none">
-              {ROLE_LABELS[user.role]}
-            </p>
-          </div>
-          <button
-            id="btn-logout"
-            onClick={onLogout}
-            title="Log out"
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        <button
+          id="btn-logout"
+          onClick={onLogout}
+          className="mt-4 w-full flex items-center gap-2.5 px-1.5 py-1.5 rounded-md text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Log out
+        </button>
       </div>
     </aside>
   );

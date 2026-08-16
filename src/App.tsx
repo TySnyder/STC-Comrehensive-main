@@ -375,6 +375,7 @@ function Portal({ rawUser, logout }: { rawUser: RawUser; logout: () => void }) {
           openNoteModal={() => openNoteModalWithContext()}
           clients={clients}
           staff={staffList}
+          user={user}
           onSelectClient={handleSelectClient}
           onNavigateToStaff={() => setTab('staff')}
           emailDeliveryMode={effectiveEmailMode}
