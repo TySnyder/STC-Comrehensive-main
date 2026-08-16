@@ -6,6 +6,8 @@
 import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import LoginView from './components/LoginView';
+import { useAuth } from './context/AuthContext';
 import DashboardView from './components/DashboardView';
 import ClientsView from './components/ClientsView';
 import AttendanceView from './components/AttendanceView';
@@ -36,6 +38,8 @@ import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
+  const { user, logout } = useAuth();
+
   // Navigation & Workspace states
   const [currentTab, setTab] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -231,20 +235,24 @@ export default function App() {
     }
   };
 
+  if (!user) return <LoginView />;
+
   return (
     <div id="portal-root-layout" className="flex h-screen bg-slate-50 overflow-hidden font-sans select-none antialiased">
-      
+
       {/* 1. Persistent Sidebar */}
-      <Sidebar 
-        currentTab={currentTab} 
+      <Sidebar
+        currentTab={currentTab}
         setTab={(tabId) => {
           setTab(tabId);
           // If moving between tabs, clear transient profile selections to return to directories
           if (tabId !== 'clients') {
             setSelectedClient(null);
           }
-        }} 
+        }}
         openNoteModal={() => openNoteModalWithContext()}
+        user={user}
+        onLogout={logout}
       />
 
       {/* 2. Scrollable Workspace & Top Toolbar */}
