@@ -58,7 +58,7 @@ export default function App() {
   const [risks, setRisks] = useState<OperationalRisk[]>(INITIAL_RISKS);
   const [clinicalNotes, setClinicalNotes] = useState<ClinicalNote[]>(INITIAL_NOTES);
   const [indSessions, setIndSessions] = useState<IndSession[]>(INITIAL_IND_SESSIONS);
-  const [censusEntries, setCensusEntries] = useState<CensusEntry[]>(INITIAL_CENSUS_ENTRIES);
+  const [censusEntries, setCensusEntries] = useLocalStorageState<CensusEntry[]>('stc-census-entries', INITIAL_CENSUS_ENTRIES);
   const [billingNotes, setBillingNotes] = useState<InsuranceBillingNote[]>(INITIAL_INSURANCE_BILLING_NOTES);
   const [scheduleSlots, setScheduleSlots] = useLocalStorageState<GridSlot[]>('stc-schedule-slots', INITIAL_SLOTS);
   const [uaAssignments, setUaAssignments] = useLocalStorageState<UaAssignment[]>('stc-ua-assignments', []);
