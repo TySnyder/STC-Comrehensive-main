@@ -199,3 +199,15 @@ export interface GridSlot {
   programType: string;
   substituteId?: string | null;
 }
+
+// Auth scaffold (see AuthContext). Roles designed in from day 1 so the app
+// can expand from single-user to full staff without a data-model rework —
+// no permission gating per role is enforced yet, that's a future slice.
+export type AppRole = 'admin' | 'therapist' | 'intake' | 'supervisor';
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: AppRole;
+}

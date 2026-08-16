@@ -18,15 +18,33 @@ import {
   CalendarDays,
   FlaskConical,
   ListChecks,
+  LogOut,
 } from 'lucide-react';
+import { AuthUser } from '../types';
 
 interface SidebarProps {
   currentTab: string;
   setTab: (tab: string) => void;
   openNoteModal: () => void;
+  user: AuthUser;
+  onLogout: () => void;
 }
 
-export default function Sidebar({ currentTab, setTab, openNoteModal }: SidebarProps) {
+const ROLE_LABELS: Record<AuthUser['role'], string> = {
+  admin: 'Admin Staff Access',
+  therapist: 'Therapist Access',
+  intake: 'Intake Staff Access',
+  supervisor: 'Supervisor Access',
+};
+
+export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLogout }: SidebarProps) {
+  const initials = user.name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tasktrack', label: 'Task Track', icon: ListChecks },
@@ -91,16 +109,24 @@ export default function Sidebar({ currentTab, setTab, openNoteModal }: SidebarPr
         </button>
         <div id="sidebar-footer-credentials" className="mt-4 flex items-center gap-2.5 px-1.5">
           <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-xs border border-indigo-200">
-            CL
+            {initials}
           </div>
-          <div className="truncate">
+          <div className="truncate flex-1">
             <p className="text-xs font-bold text-slate-700 truncate leading-none mb-1">
-              Clinical Lead
+              {user.name}
             </p>
             <p className="text-[10px] text-slate-400 truncate leading-none">
-              Admin Staff Access
+              {ROLE_LABELS[user.role]}
             </p>
           </div>
+          <button
+            id="btn-logout"
+            onClick={onLogout}
+            title="Log out"
+            className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
     </aside>
