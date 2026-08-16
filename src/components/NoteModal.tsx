@@ -91,11 +91,12 @@ export default function NoteModal({
   };
 
   return (
-    <div id="note-modal-overlay" className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      
-      <div 
-        id="note-editor-card" 
+    <div id="note-modal-overlay" className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={onClose}>
+
+      <div
+        id="note-editor-card"
         className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl overflow-hidden relative flex flex-col max-h-[90vh]"
+        onClick={e => e.stopPropagation()}
       >
         
         {/* Header toolbar */}

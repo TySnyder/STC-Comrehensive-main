@@ -50,8 +50,8 @@ export default function DischargeClientModal({ client, onClose, onDischarge }: D
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden" onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="px-6 pt-5 pb-4 bg-red-50 flex items-start justify-between">

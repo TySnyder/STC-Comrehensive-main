@@ -243,8 +243,8 @@ export default function AttendanceTotals({ clients, onUpdateClient }: Attendance
 
       {/* Fine-tune modal */}
       {editingClient && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setEditingClient(null)}>
+          <div className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
               <h3 className="font-bold text-slate-800 text-sm">Fine-Tune Running Attendance Sums</h3>
               <p className="text-xs text-slate-500 mt-1">

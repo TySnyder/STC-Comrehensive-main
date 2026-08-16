@@ -503,12 +503,13 @@ export default function ScheduleView({ staff, sessions, slots, setSlots, searchT
       {/* Assignment Modal */}
       <AnimatePresence>
         {assigningSlot && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs" onClick={() => setAssigningSlot(null)}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl max-w-md w-full"
+              onClick={e => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-extrabold text-lg text-indigo-600">Assign Clinic Slot</h3>

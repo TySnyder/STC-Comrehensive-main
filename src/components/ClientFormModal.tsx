@@ -19,8 +19,8 @@ export default function ClientFormModal({ isOpen, onClose, clientName }: ClientF
   const forms = getClientForms();
 
   return (
-    <div id="client-form-modal-overlay" className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden relative flex flex-col max-h-[90vh]">
+    <div id="client-form-modal-overlay" className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden relative flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
           <div>
             <h3 className="font-display font-bold text-sm text-slate-900">Client Forms</h3>

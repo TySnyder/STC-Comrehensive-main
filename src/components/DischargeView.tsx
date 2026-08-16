@@ -545,8 +545,8 @@ export default function DischargeView({
 
       {/* Readmit confirmation — new episode, back to Active */}
       {readmitTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setReadmitTarget(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-slate-800">Readmit {readmitTarget.name}</h3>
             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
               Starts episode {getCurrentEpisode(readmitTarget).episodeNumber + 1} and returns the

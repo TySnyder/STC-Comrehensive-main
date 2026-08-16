@@ -574,8 +574,8 @@ export default function StaffView({ staffList, clients, slots, setSlots, session
         const session  = sessions.find(s => s.id === subModalSlot.sessionId);
         const others   = staffList.filter(s => s.id !== subModalSlot.therapistId);
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl max-w-sm w-full">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs" onClick={() => setSubModalSlot(null)}>
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-display font-bold text-base text-slate-900">Set Coverage</h3>
                 <button onClick={() => setSubModalSlot(null)} className="p-1 rounded-full hover:bg-slate-100 text-slate-400">
