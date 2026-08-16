@@ -4,7 +4,7 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 // TODO(PHI): Firestore rules are open/permissive for now (demo data only, no
 // real Firebase Auth wired in yet). Must be locked down before any real
@@ -19,4 +19,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+
+// Every entity type has optional (`?`) fields that are commonly `undefined`
+// (e.g. CensusEntry.specialCode) — the app's object literals include them as
+// explicit `undefined` properties, same as they always did for JSON.stringify
+// (which silently drops them). Firestore's default behavior instead throws on
+// `undefined`, so without this the very first optional-field write crashes.
+export const db = initializeFirestore(app, { ignoreUndefinedProperties: true });
