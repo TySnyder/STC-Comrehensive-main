@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Client, ClinicalNote, AttendanceEntry, AttendanceUpdate, UaFrequency } from '../types';
 import { estDischargeDate, DEFAULT_ENROLLMENT_DAYS, MIN_ENROLLMENT_DAYS } from '../utils/dcDateHelpers';
-import { computeTxDaysAttended } from '../utils/attendanceHelpers';
+import { computeTxDaysAttended, graduationTarget } from '../utils/attendanceHelpers';
 import AddClientModal from './AddClientModal';
 
 interface ClientsViewProps {
@@ -265,7 +265,7 @@ export default function ClientsView({
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-medium">TX Days Attended:</span>
                     <span className="font-semibold text-indigo-700 font-mono">
-                      {computeTxDaysAttended(selectedClient)} / {selectedClient.enrollmentDays ?? DEFAULT_ENROLLMENT_DAYS}
+                      {computeTxDaysAttended(selectedClient)} / {graduationTarget(selectedClient)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">

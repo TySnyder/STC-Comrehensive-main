@@ -85,6 +85,7 @@ export interface Client {
   admissionDate: string;
   // Est. DC date is derived (dcDateHelpers), never stored/free-text (doc 02 Q7).
   enrollmentDays?: number;       // planned treatment days; default 85, min 30
+  graduationTrack?: 30 | 85;     // TX-day track chosen at admission; default 85 (open question: where staff sets this — see report)
   scheduleDaysPerWeek?: number;  // 1–5; default 5 (SF OP-style schedule exceptions)
   dcDateNote?: string;           // optional context on the predicted date
   status: ClientStatus;

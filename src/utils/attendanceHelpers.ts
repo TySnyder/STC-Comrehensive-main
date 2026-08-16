@@ -10,6 +10,14 @@ import { AttendanceEntry, Client } from '../types';
 // spreadsheet's rare ".5T" case). Single-block programs (DOP/EOP/other) count
 // 1 for any Present entry. Grouping by block presence (not client.program) so
 // this stays correct across a program step-down mid-history.
+export const DEFAULT_GRADUATION_TRACK = 85;
+
+// Per-client TX-day target — clients choose a 30- or 85-day track at
+// admission (types.ts: Client.graduationTrack); undefined = not yet set.
+export function graduationTarget(client: Client): number {
+  return client.graduationTrack ?? DEFAULT_GRADUATION_TRACK;
+}
+
 export function computeTxDaysAttended(client: Client): number {
   const byDate = new Map<string, AttendanceEntry[]>();
   for (const e of client.attendanceHistory) {
