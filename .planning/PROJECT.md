@@ -53,16 +53,22 @@ The Office Manager can complete every daily clinical operations task — attenda
 
 **BestNotes is the clinical EHR of record.** This portal is the administrative/operations layer — it must not become the clinical record, but it can support BestNotes workflows (cross-checking census vs EHR, prompting what needs entry there). Spreadsheet→app field mapping lives in `.planning/spreadsheets/` (docs 01–06 + README traceability table).
 
-**Programs:**
-| Program | Time | Days | Blocks |
+**Programs:** each half-day is one 3-hour group, split into two ~1.5hr blocks. A client on the
+full track attends both blocks (DIOP / EIOP — "Intensive"); a client on the step-down track attends
+only the second block (DOP / EOP). Same structure, day and evening.
+
+| Program | Time | Days | Which block(s) |
 |---------|------|------|--------|
-| DIOP (Day IOP) | 11:45 AM – 1:30 PM | Mon–Fri | 1st block only |
-| DOP (Day OP) | 1:45 PM – 3:00 PM | Mon–Fri | 2nd block (also DIOP clients) |
-| EIOP (Evening IOP) | 3:45 PM – 5:30 PM | Mon–Fri | 3rd block only |
-| EOP (Evening OP) | 5:45 PM – 7:00 PM | Mon–Fri | 4th block (also EIOP clients) |
+| DIOP (Day IOP) — full day track | 11:45 AM – 1:30 PM (block A) + 1:45 – 3:00 PM (block B) | Mon–Fri | Both |
+| DOP (Day OP) — step-down day track | 1:45 PM – 3:00 PM (block B only) | Mon–Fri | Block B only |
+| EIOP (Evening IOP) — full evening track | 3:45 – 5:30 PM (block A) + 5:45 – 7:00 PM (block B) | Mon–Fri | Both |
+| EOP (Evening OP) — step-down evening track | 5:45 PM – 7:00 PM (block B only) | Mon–Fri | Block B only |
 | IND | Varies | Once/week | Separate section |
 
-**Two-block rule:** DIOP clients attend BOTH the 11:45 and 1:45 blocks (two independent attendance records per day). EIOP clients attend BOTH the 3:45 and 5:45 blocks. DOP and EOP clients attend only their single block.
+**Two-block rule:** DIOP clients attend BOTH the 11:45 and 1:45 blocks (two independent attendance
+records per day) — DIOP is the client's *track* (both blocks), not a synonym for the first block
+alone. EIOP clients attend BOTH the 3:45 and 5:45 blocks the same way. DOP and EOP clients attend
+only their single (second) block.
 
 **Attendance workflow:** Therapists email attendance reports daily (not standardized). Office Manager reviews each email and manually enters data in the portal. No auto-parsing.
 
