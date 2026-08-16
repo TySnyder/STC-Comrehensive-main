@@ -25,6 +25,7 @@ import VirtualRequestsView from './components/VirtualRequestsView';
 import DischargeClientModal from './components/DischargeClientModal';
 import { applyDischarge, reverseDischarge, updateEpisode, readmitClient, DischargeInput } from './utils/episodeHelpers';
 import { useLocalStorageState } from './utils/useLocalStorageState';
+import { useFirestoreState } from './utils/useFirestoreState';
 import { dispatchEmail } from './utils/gmail';
 import { listUaAssignments } from './utils/uaAssignmentsApi';
 
@@ -52,16 +53,18 @@ export default function App() {
   const [currentTab, setTab] = useState<string>('dashboard');
   const [searchQuery, setSearchQuery] = useState<string>('');
   
-  // EHR persistent client-side database
-  const [clients, setClients] = useState<Client[]>(INITIAL_CLIENTS);
-  const [staffList, setStaffList] = useState<Staff[]>(INITIAL_STAFF);
-  const [risks, setRisks] = useState<OperationalRisk[]>(INITIAL_RISKS);
-  const [clinicalNotes, setClinicalNotes] = useState<ClinicalNote[]>(INITIAL_NOTES);
-  const [indSessions, setIndSessions] = useState<IndSession[]>(INITIAL_IND_SESSIONS);
-  const [censusEntries, setCensusEntries] = useLocalStorageState<CensusEntry[]>('stc-census-entries', INITIAL_CENSUS_ENTRIES);
-  const [billingNotes, setBillingNotes] = useState<InsuranceBillingNote[]>(INITIAL_INSURANCE_BILLING_NOTES);
-  const [scheduleSlots, setScheduleSlots] = useLocalStorageState<GridSlot[]>('stc-schedule-slots', INITIAL_SLOTS);
-  const [uaAssignments, setUaAssignments] = useLocalStorageState<UaAssignment[]>('stc-ua-assignments', []);
+  // EHR persistent database — Firestore-backed (project stc-operations-portal),
+  // real-time across tabs/devices. Demo data only; rules are open until real
+  // Firebase Auth + a BAA are in place (see HANDOFF.md, firebaseClient.ts).
+  const [clients, setClients] = useFirestoreState<Client>('clients', INITIAL_CLIENTS, c => c.id);
+  const [staffList, setStaffList] = useFirestoreState<Staff>('staff', INITIAL_STAFF, s => s.id);
+  const [risks, setRisks] = useFirestoreState<OperationalRisk>('risks', INITIAL_RISKS, r => r.id);
+  const [clinicalNotes, setClinicalNotes] = useFirestoreState<ClinicalNote>('clinicalNotes', INITIAL_NOTES, n => n.id);
+  const [indSessions, setIndSessions] = useFirestoreState<IndSession>('indSessions', INITIAL_IND_SESSIONS, s => s.id);
+  const [censusEntries, setCensusEntries] = useFirestoreState<CensusEntry>('censusEntries', INITIAL_CENSUS_ENTRIES, e => e.id);
+  const [billingNotes, setBillingNotes] = useFirestoreState<InsuranceBillingNote>('billingNotes', INITIAL_INSURANCE_BILLING_NOTES, n => `${n.clientId}_${n.weekStart}`);
+  const [scheduleSlots, setScheduleSlots] = useFirestoreState<GridSlot>('scheduleSlots', INITIAL_SLOTS, s => s.id);
+  const [uaAssignments, setUaAssignments] = useFirestoreState<UaAssignment>('uaAssignments', [], a => a.id);
 
   // Proof-of-life: stc-backend walking skeleton (see HANDOFF.md). Not wired
   // into uaAssignments state yet — just confirms the browser can reach the
@@ -71,7 +74,7 @@ export default function App() {
       .then((data) => console.log('[stc-backend proof-of-life] UA assignments:', data))
       .catch((err) => console.error('[stc-backend proof-of-life] failed:', err));
   }, []);
-  const [timeOffRequests, setTimeOffRequests] = useLocalStorageState<TimeOffRequest[]>('stc-time-off', []);
+  const [timeOffRequests, setTimeOffRequests] = useFirestoreState<TimeOffRequest>('timeOffRequests', [], r => r.id);
   const [emailDeliveryMode, setEmailDeliveryModeRaw] = useLocalStorageState<EmailDeliveryMode>('stc-email-delivery-mode', 'draft');
   // Settings' master switch: while on, every email sends and STAYS in send
   // mode — no auto-revert. The header icon is the lighter one-shot control,
@@ -116,8 +119,8 @@ export default function App() {
     if (effectiveEmailMode === 'send' && !emailSendMaster) setEmailDeliveryModeRaw('draft');
   };
   const [emailSignature, setEmailSignature] = useLocalStorageState<string>('stc-email-signature', DEFAULT_EMAIL_SIGNATURE);
-  const [callLog, setCallLog] = useLocalStorageState<CallLogEntry[]>('stc-call-log', INITIAL_CALL_LOG);
-  const [virtualRequests, setVirtualRequests] = useLocalStorageState<VirtualRequestEntry[]>('stc-virtual-requests', INITIAL_VIRTUAL_REQUESTS);
+  const [callLog, setCallLog] = useFirestoreState<CallLogEntry>('callLog', INITIAL_CALL_LOG, c => c.id);
+  const [virtualRequests, setVirtualRequests] = useFirestoreState<VirtualRequestEntry>('virtualRequests', INITIAL_VIRTUAL_REQUESTS, r => r.id);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [dischargingClient, setDischargingClient] = useState<Client | null>(null);
 
