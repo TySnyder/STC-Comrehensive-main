@@ -32,7 +32,7 @@ import {
   INITIAL_SESSIONS,
   INITIAL_SLOTS,
 } from './data';
-import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode } from './types';
+import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, AttendanceUpdate } from './types';
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
@@ -122,7 +122,7 @@ export default function App() {
     clientId: string,
     date: string,
     block: 'A' | 'B' | undefined,
-    updates: { status?: 'Present' | 'Absent'; tardy?: boolean; virtual?: boolean; excused?: boolean }
+    updates: AttendanceUpdate
   ) => {
     const updated = clients.map(c => {
       if (c.id !== clientId) return c;
@@ -135,7 +135,8 @@ export default function App() {
           i === existingIdx ? { ...entry, ...updates } : entry
         );
       } else {
-        history = [{ date, block, status: 'Present' as const, ...updates }, ...c.attendanceHistory];
+        // New entries are labeled with the client's program at time of entry (doc 02).
+        history = [{ date, block, status: 'Present' as const, program: c.program, ...updates }, ...c.attendanceHistory];
       }
       return { ...c, attendanceHistory: history };
     });

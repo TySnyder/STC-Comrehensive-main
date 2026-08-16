@@ -25,9 +25,17 @@ export interface AttendanceEntry {
   status: 'Present' | 'Absent';
   tardy?: boolean;
   virtual?: boolean;
-  excused?: boolean;
-  note?: string;
+  atResidence?: boolean;   // NEW — at primary residence Y/N, independent of virtual/in-person
+  excused?: boolean;       // only meaningful when status === 'Absent'
+  note?: string;           // brief clinical reason (template text, e.g. "Medical appointment")
+  attendanceNotes?: string; // NEW — free-text, client-specific note for this entry
+  program?: string;        // NEW — client.program snapshot at time of entry (doc 02: "label each record")
 }
+
+// Shared shape for partial attendance-entry edits, used by App/AttendanceView/ClientsView.
+export type AttendanceUpdate = Partial<
+  Pick<AttendanceEntry, 'status' | 'tardy' | 'virtual' | 'atResidence' | 'excused' | 'note' | 'attendanceNotes'>
+>;
 
 export interface IndSession {
   id: string;

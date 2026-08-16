@@ -10,11 +10,13 @@ import {
   Plus,
   Clock,
   Video,
+  Home,
   ChevronRight,
   UserPlus,
 } from 'lucide-react';
-import { Client, ClinicalNote, AttendanceEntry, UaFrequency } from '../types';
+import { Client, ClinicalNote, AttendanceEntry, AttendanceUpdate, UaFrequency } from '../types';
 import { estDischargeDate, DEFAULT_ENROLLMENT_DAYS, MIN_ENROLLMENT_DAYS } from '../utils/dcDateHelpers';
+import { computeTxDaysAttended } from '../utils/attendanceHelpers';
 import AddClientModal from './AddClientModal';
 
 interface ClientsViewProps {
@@ -29,9 +31,17 @@ interface ClientsViewProps {
     clientId: string,
     date: string,
     block: 'A' | 'B' | undefined,
-    updates: { status?: 'Present' | 'Absent'; tardy?: boolean; virtual?: boolean; excused?: boolean }
+    updates: AttendanceUpdate
   ) => void;
   onUpdateClient?: (clientId: string, updates: Partial<Client>) => void;
+}
+
+// Cell title tooltip surfaces Note/Attendance Notes without a dedicated edit
+// surface here — the roster (AttendanceView) is the primary daily-entry point.
+function entryTooltip(entry: AttendanceEntry | undefined): string | undefined {
+  if (!entry) return undefined;
+  const parts = [entry.note, entry.attendanceNotes].filter(Boolean);
+  return parts.length ? parts.join(' — ') : undefined;
 }
 
 const UA_FREQUENCY_OPTIONS: { value: UaFrequency; label: string }[] = [
@@ -60,6 +70,7 @@ function BlockCell({
 }) {
   const isAbsent = entry?.status === 'Absent';
   const hasEntry = !!entry;
+  const tooltip = entryTooltip(entry);
 
   return (
     <div className={`rounded-xl border flex flex-col select-none transition-colors ${
@@ -71,7 +82,7 @@ function BlockCell({
     }`}>
       <div
         onClick={() => onUpdate?.(clientId, date, block, { status: isAbsent ? 'Present' : 'Absent' })}
-        title={`${label} — click to toggle`}
+        title={tooltip ? `${label} — ${tooltip}` : `${label} — click to toggle`}
         className="px-2 pt-3 pb-2 text-center cursor-pointer active:opacity-70 transition-opacity"
       >
         <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block leading-none mb-1.5 tracking-wider">{label}</span>
@@ -117,6 +128,14 @@ function BlockCell({
               className={`transition-all ${!hasEntry ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-125'}`}
             >
               <Video className={`w-5 h-5 ${entry?.virtual ? 'text-blue-500' : 'text-slate-400'}`} />
+            </button>
+            <button
+              onClick={() => hasEntry && onUpdate?.(clientId, date, block, { atResidence: !entry?.atResidence })}
+              disabled={!hasEntry}
+              title={entry?.atResidence ? 'At primary residence' : 'Mark at primary residence'}
+              className={`transition-all ${!hasEntry ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer hover:scale-125'}`}
+            >
+              <Home className={`w-5 h-5 ${entry?.atResidence ? 'text-violet-500' : 'text-slate-400'}`} />
             </button>
           </>
         )}
@@ -242,6 +261,12 @@ export default function ClientsView({
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-medium">Est. Discharge:</span>
                     <span className="font-semibold text-slate-700 font-mono">{estDischargeDate(selectedClient)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 font-medium">TX Days Attended:</span>
+                    <span className="font-semibold text-indigo-700 font-mono">
+                      {computeTxDaysAttended(selectedClient)} / {selectedClient.enrollmentDays ?? DEFAULT_ENROLLMENT_DAYS}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-medium">Enrollment:</span>
@@ -383,6 +408,7 @@ export default function ClientsView({
                   {uniqueDates.map(date => {
                     const entry = dateMap.get(date)?.single;
                     const isAbsent = entry?.status === 'Absent';
+                    const tooltip = entryTooltip(entry);
                     return (
                       <div
                         key={date}
@@ -392,7 +418,7 @@ export default function ClientsView({
                       >
                         <div
                           onClick={() => onUpdateAttendance?.(selectedClient.id, date, undefined, { status: isAbsent ? 'Present' : 'Absent' })}
-                          title={`Click to mark ${isAbsent ? 'Present' : 'Absent'}`}
+                          title={tooltip ?? `Click to mark ${isAbsent ? 'Present' : 'Absent'}`}
                           className="px-2 pt-3 pb-2 text-center cursor-pointer active:opacity-70 transition-opacity"
                         >
                           <span className="text-[10px] font-mono font-bold text-slate-400 uppercase block leading-none mb-1.5 tracking-wider">
@@ -436,6 +462,13 @@ export default function ClientsView({
                                 className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
                               >
                                 <Video className={`w-5 h-5 transition-colors ${entry?.virtual ? 'text-blue-500' : 'text-slate-400'}`} />
+                              </button>
+                              <button
+                                onClick={() => onUpdateAttendance?.(selectedClient.id, date, undefined, { atResidence: !entry?.atResidence })}
+                                title={entry?.atResidence ? 'At primary residence' : 'Mark at primary residence'}
+                                className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
+                              >
+                                <Home className={`w-5 h-5 transition-colors ${entry?.atResidence ? 'text-violet-500' : 'text-slate-400'}`} />
                               </button>
                             </>
                           )}
