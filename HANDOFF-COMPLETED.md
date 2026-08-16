@@ -3,6 +3,75 @@
 > Completed handoffs, moved verbatim from the director. Never read wholesale — search with `rg`.
 
 ---
+<!-- archived from HANDOFF.md on 2026-08-16 (Firestore migration, census bug, block naming, modals) -->
+
+**Firestore migration (038a9eb) — the app's shared data is now real, persisted, real-time.**
+User asked to "tie in a database now"; Firebase project/Firestore database already existed from
+earlier this session but nothing referenced it. Confirmed scope via 3 quick questions: migrate
+everything at once (not just Census), keep today's demo-only auth with open Firestore rules (no
+real Firebase Auth yet), data stays demo/fake (BAA still not signed).
+
+- `npm install firebase`. `src/utils/firebaseClient.ts` — `initializeApp`/`getFirestore` from
+  `VITE_FIREBASE_*` env vars.
+- `src/utils/useFirestoreState.ts` — a generic hook with the *exact same* `[value, setValue]`
+  shape as `useLocalStorageState`/`useState`, so it's a pure drop-in at each declaration site in
+  `App.tsx` — zero handler logic touched anywhere else in the app. Subscribes via `onSnapshot`
+  (real-time across tabs/devices); on empty collection, seeds from the existing demo data via a
+  keyed `writeBatch` (idempotent — safe even if two clients race to seed at once, since every
+  write is a `.set()` on a deterministic doc ID, never `.add()`). The setter diffs the
+  before/after array and writes only what actually changed (added/updated/removed), same
+  semantics as the old array-replacing `setState` calls callers already use.
+- Migrated (collection name in Firestore): `clients`, `staff`, `risks`, `clinicalNotes`,
+  `indSessions`, `censusEntries`, `billingNotes` (composite doc ID `clientId_weekStart`, no
+  natural `.id` field), `scheduleSlots`, `uaAssignments`, `timeOffRequests`, `callLog`,
+  `virtualRequests`.
+- Deliberately kept on `useLocalStorageState`, NOT migrated: `emailDeliveryMode`,
+  `emailSendMaster`, `emailSignature`. These are per-browser safety/UX toggles, not shared EHR
+  data — making the "armed send" master switch a shared Firestore doc would change its risk
+  semantics (one browser arming it would arm it for every browser simultaneously). Flagged to the
+  user rather than silently migrated.
+- `firestore.rules` (open — `allow read, write: if true`, matches the no-real-Auth decision) +
+  `firebase.json` + `.firebaserc` (default project `stc-operations-portal`) added; rules deployed
+  via `firebase deploy --only firestore:rules --project stc-operations-portal`.
+- `.env.example` finally documents the `VITE_FIREBASE_*` vars (previously flagged as missing).
+  Same 6 vars added to Vercel production env via `vercel env add ... production`.
+- Verified end-to-end via ego-browser: loaded production, confirmed via the actual Firebase
+  console (Cloud Firestore → Database → Data) that all collections exist with correctly-shaped,
+  correctly-keyed documents (e.g. `billingNotes/client-1_2026-06-23` with real `clientId`/
+  `notes`/`weekStart` fields) — not just "no errors," actually inspected real written data.
+- Gate: `tsc --noEmit` clean, 80/80 tests, `vite build` succeeds (bundle grew ~1.1MB → ~1.69MB
+  from the Firebase SDK, expected).
+- **TODO(PHI), reinforced not just noted:** rules are open specifically because there's no real
+  Auth yet — this must be locked down (comment left in both `firebaseClient.ts` and
+  `firestore.rules`) before any real client data goes in, on top of the still-needed BAA.
+
+**Bug found and fixed: Weekly Census entries not persisted (c2c0df2).** User reported edits not
+saving. Traced: `censusEntries` used plain `useState` while every newer piece of state
+(`uaAssignments`, `callLog`, `virtualRequests`, etc.) already used `useLocalStorageState` — any
+page refresh silently reset Census back to seed data. Fixed (later superseded by the Firestore
+migration above, which persists it properly). **Found but NOT fixed, still open:** a worse, separate
+bug in `CensusView.tsx` — the "Totals" and "Roster" sub-tabs (`AttendanceTotals`,
+`WeeklyCensusGrid`) operate on a local `tempClients` copy rebuilt from scratch by a `useEffect`
+whenever `clients`/`censusEntries` change; their edit handlers (`handleUpdateTempClient`,
+`handleUpdateTempAttendance`) never write back to real state at all, so edits there vanish almost
+immediately, not just on refresh. Also: the "Roster" sub-tab has no button in `SUB_TABS` reaching
+it — currently dead/unreachable UI. Needs its own scoping decision, not fixed this session.
+
+**DIOP/DOP/EIOP/EOP block naming (6a43d5a).** User walked through the actual clinical model: each
+half-day is one 3-hour group split into two ~1.5hr blocks; DIOP/EIOP = full track (both blocks),
+DOP/EOP = step-down track (2nd block only) — matches what the attendance overhaul already built,
+but `.planning/PROJECT.md`'s table wording implied DIOP meant "1st block only," which was wrong;
+corrected there too (7986913). Virtual Requests' "Block A"/"Block B" picker and list column now
+show the client's actual track name (DIOP/DOP/EIOP/EOP), derived from the selected/row client's
+`program` field via a small `BLOCK_LABELS` lookup — same convention `AttendanceView`'s section
+headers already used, just newly applied here too.
+
+**Close-on-backdrop-click for every modal (571c11e).** 13 modal backdrops across 12 files fixed
+(`onClick={onClose}` on the overlay div + `onClick={e => e.stopPropagation()}` on the card),
+matching a pattern that already existed twice in the codebase (`InsuranceBillingModal`'s
+`handleBackdrop`, `ScheduleView`'s theme-detail modal).
+
+---
 <!-- archived from HANDOFF.md on 2026-08-16 (deploy, PHI stopgap, Firebase, 4-agent sprint) -->
 
 **Daily Reminders wiring — committed and merged (8fc2037).** `sendDailyReminders` goes through
