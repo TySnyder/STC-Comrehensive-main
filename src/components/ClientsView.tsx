@@ -214,7 +214,7 @@ export default function ClientsView({
               onClick={() => setShowFormModal(true)}
               className="bg-white hover:bg-slate-50 text-slate-700 font-sans font-medium text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs border border-slate-200"
             >
-              <FileText className="w-4 h-4" /> Client Form
+              <FileText className="w-4 h-4" /> Client Forms
             </button>
             <span className="text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1.5 rounded-lg flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Active Case

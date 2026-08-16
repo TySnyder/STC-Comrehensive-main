@@ -17,7 +17,7 @@ One line per form:
 
 ## Forms
 
--
+- Graduation Certificate — https://docs.google.com/document/d/15Fj2WdEKf3MKxAKIcFgo8X6S7I9qNJ3tPi4ov3d1oeI/edit?usp=drivesdk
 
 ## Auto-Fill Forms (reused from stc_dashboard_v4)
 
@@ -65,6 +65,3 @@ section is the spec to build against when that lands, not live yet.
 Generated copies clean up automatically after 7 days (`cleanupOldFormCopies()`,
 daily trigger) in the source project — worth deciding whether this app wants
 the same retention policy once it owns this.
-
-### Graduation Certificate
-<https://docs.google.com/document/d/15Fj2WdEKf3MKxAKIcFgo8X6S7I9qNJ3tPi4ov3d1oeI/edit?usp=drivesdk>
