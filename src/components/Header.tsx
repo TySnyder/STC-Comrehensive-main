@@ -295,9 +295,6 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
           {(() => {
             const matchedStaff = staff.find(s => s.email.toLowerCase() === user.email.toLowerCase());
             const initials = user.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
-            const subtitle = matchedStaff?.role
-              ? `${matchedStaff.role} and ${ROLE_LABELS[user.role]}`
-              : ROLE_LABELS[user.role];
             return (
               <>
                 {matchedStaff?.photo ? (
@@ -314,7 +311,10 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
                 )}
                 <div className="text-left hidden md:block">
                   <h4 className="text-xs font-bold text-slate-700 leading-tight">{user.name}</h4>
-                  <p className="text-[9px] font-mono text-indigo-600 font-bold uppercase tracking-wider leading-none">{subtitle}</p>
+                  {matchedStaff?.role && (
+                    <p className="text-[9px] font-mono text-slate-400 font-semibold uppercase tracking-wider leading-none mt-0.5">{matchedStaff.role}</p>
+                  )}
+                  <p className="text-[9px] font-mono text-indigo-600 font-bold uppercase tracking-wider leading-none mt-0.5">{ROLE_LABELS[user.role]}</p>
                 </div>
               </>
             );
