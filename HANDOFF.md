@@ -1,71 +1,57 @@
 # HANDOFF — director
-**Updated:** 2026-08-15
+**Updated:** 2026-08-16
 **App:** STC Operations Portal — internal behavioral health clinical-ops portal for admin staff (no consumer surface). React 19 / Vite / TS / Tailwind v4.
-**Commands:** `npm run dev` (port 3004; 3000–3003 in use on this machine) · gate: `tsc --noEmit` · tests: vitest (80 passing) · `npm run build`
+**Commands:** `npm run dev` (port varies — 3000-3004 often taken; check console output) · gate: `tsc --noEmit` · tests: `npm run test` (vitest, 400 passing) · `npm run build`
 **Key docs:** `PRODUCT.md`, `DESIGN.md`, `.planning/PROJECT.md`, `.planning/spreadsheets/README.md` (open-questions workflow), `.planning/codebase/`
 
 ---
 
 ## Current state
 
-Working tree clean, all committed through `f8b40cb`, gate green. Not pushed to `origin`.
-Full detail of everything through today's session (Task Track, Google Calendar OAuth,
-Client Forms picker, live timeline data, email delivery mode + master-switch safety
-fix) is in `HANDOFF-COMPLETED.md` — search with `rg`, don't read wholesale.
+Working tree clean, all merged through `afb9073` on local `master`. **18 commits ahead of
+`origin/master`, not pushed.** Full detail of this session (Vercel deploy, real-PHI stopgap,
+Firebase provisioning, 4-agent sprint merge) is in `HANDOFF-COMPLETED.md` — search with `rg`, don't
+read wholesale.
+
+**Site is live but STALE:** https://stc-comprehensive.vercel.app was last deployed *before* this
+session's 4-agent sprint merged — it does not have login, attendance overhaul, call tracking, or the
+settings refactor. It also has no `VITE_UA_API_URL` (deliberately removed — no real PHI on the live
+site, everything runs on demo data). Local `master` has all of it; nothing new has been pushed or
+redeployed yet, pending the manual test below.
+
+**No real PHI policy:** confirmed with the user — this app runs entirely on demo/mock data until a
+real auth + Firestore/BAA path exists. Do not wire any view to `stc-backend`'s real client-contact
+endpoints (`dailyReminderRecipients`, `tomorrowsAppointments`) in a way that's reachable from a public
+deployment.
 
 ## stc-backend (Apps Script Web App) — status
 
-Walking skeleton (UA assignments doGet/doPost) is **done, fully proven end-to-end**
-— see `HANDOFF-COMPLETED.md` for the full story (includes a real root-cause fix:
-the linked GCP project's OAuth audience was Internal, blocking anonymous callers).
-Deployment: `AKfycbwEiBKCQOriMR9zYQKbfIgX8TwfUW760AStNuRWVaiktdrwfubgb20lYm0paXMFzCGX`,
-still "Anyone, even anonymous" — auth model still undecided, see below.
+Unchanged this session. Walking skeleton (UA assignments) + Daily Reminders send are proven
+end-to-end against real data in dev — see `HANDOFF-COMPLETED.md` for the full story. Still deployed
+anonymous ("Anyone, even anonymous"); auth model still undecided. The live Vercel site no longer
+points at it (see above), but local dev (`.env`'s `VITE_UA_API_URL`) still does.
 
-## Next steps — Daily Reminders wiring (IN PROGRESS)
+## Firebase — provisioned, not wired
 
-`TaskTrackView.tsx`'s "Daily Reminders" tab already existed (client list + call-result
-tracking) but "Send Daily Reminders" was a TODO stub. Real meaning, per the user:
-staff call a client today about their IND appointment tomorrow.
+Project `stc-operations-portal` exists with Firestore (`nam5`, closed rules) and a registered web
+app. SDK config is in local `.env` as `VITE_FIREBASE_*`. **No app code references it yet** — this is
+infrastructure only. `.env.example` doesn't document these vars yet either (nothing consumes them, so
+nothing to document until real wiring starts).
 
-**Real resources now wired (see `stc-backend/Code.js`, pushed + redeployed @3):**
+## Exact next action
 
-- **Settings tab** in the `stc-backend` bound Sheet (Sheet1 / UaAssignments / Settings)
-  — user-maintained, label rows followed by data rows: `Therapists` (name + `<email>`,
-  email = that therapist's Calendar ID), `Intake`, `Daily Reminders` (row below the
-  label = comma-separated `Name <email>` recipient list). Read via `readSettingsBlock_()`.
-- **Therapist calendars**, read via `CalendarApp.getCalendarById(therapistEmail)` —
-  works because the script executes as the developer, who has view access.
-- **Client contact sheet** (separate spreadsheet, id `1cfu4IwQVt4t09sNyhy7h9uzGIR-85x051u7gbXzdnoo`,
-  real PHI — do not paste its contents into chat or docs) — multiple tabs by
-  program, grouped by "Level of Care" section headers, columns: Name, Admit Date,
-  Cell Phone #, Home Phone #, Email, Emergency Contact. `findClientPhone_()` scans
-  all tabs, matches client name (handles suffixes like "(2)").
-- New endpoints: `doGet?action=dailyReminderRecipients`, `doGet?action=tomorrowsAppointments`
-  (both confirmed returning real data), `doPost {action: 'sendDailyReminders'}`
-  (builds the summary + calls `GmailApp.sendEmail` — **not yet triggered/tested**,
-  deliberately left for the user to fire since it emails 8 real staff addresses).
-- React: `src/utils/dailyRemindersApi.ts` (`sendDailyReminders()`), wired into the
-  "Send Daily Reminders" button in `TaskTrackView.tsx` with sending/sent/error status.
-  `tsc --noEmit` clean.
-
-**Open / not done:**
-
-- [ ] **User to test the actual send** — click "Send Daily Reminders" in the app
-  (`localhost:3004`, Task Track tab) and confirm the email lands correctly.
-- [ ] **Security gap, same as the skeleton's:** `sendDailyReminders` runs on the
-  same anonymous, unauthenticated deployment — anyone with the URL can trigger a
-  real email send right now. Auth model decision is no longer hypothetical.
-- [ ] The visible "Daily Reminders" table in `TaskTrackView.tsx` still shows mock
-  `indSessions` data filtered by a hardcoded `TODAY` (not real Calendar data) —
-  the send button now uses real data server-side, but the on-screen list doesn't
-  yet. Reconciling those (or replacing the table with `tomorrowsAppointments`) is
-  unstarted.
-- [x] `emailDeliveryMode` now passed through to the backend (`mode` in the POST
-  body); `Code.js` only calls `GmailApp.sendEmail` when `mode === 'send'`, else
-  `GmailApp.createDraft` — matches the default-safe behavior of the client-side
-  `dispatchEmail` choke point, just enforced server-side since this path doesn't
-  go through it. Pushed + redeployed (@4). Default app state is `draft`, so the
-  button is safe to click as-is.
+1. **User: manually test the app** — run `npm run dev`, open it in a browser, and click through:
+   login (demo accounts + shared password `demo`, from the dropdown), Attendance (two-block roster,
+   at-residence toggle, TX-day totals), Call Tracking (new sidebar tab), Settings (all 4 tabs still
+   work post-refactor, especially the Email Delivery Mode master switch). This was only smoke-tested
+   via `curl` (200 OK) this session — no browser click-through happened, no browser tool was
+   available.
+2. Once confirmed working: `git push origin master`, then `vercel deploy --prod --yes` to update the
+   live site with everything from this session.
+3. Decide the open questions listed in `HANDOFF-COMPLETED.md`'s "Open questions surfaced by agents"
+   section (role-permission matrix, at-residence-vs-virtual semantics, where staff sets a client's
+   30/85-day track, call-log follow-up-status meanings) — none were guessed, all need a human answer
+   before the affected features are considered finished rather than scaffolded.
 
 ## Open items (older, still unresolved)
 
@@ -73,14 +59,12 @@ Small (from spreadsheet-mapping Q&A, see archive / `.planning/spreadsheets/`):
 
 1. Facesheet: derived from census or manually curated beyond Notes/Payment? (doc 01 Q9)
 2. UA initials as audit-grade user attribution — low priority (doc 01 Q12)
-3. Verify "I believe / pretty sure" answers against live sheets when building (doc 01 Q10, doc 07 Q4, doc 08 Q4)
-
-Deferred cleanups (optional): SettingsView import-wizard flag state → discriminated union; SettingsView tab panels → separate components.
+3. Verify "I believe / pretty sure" answers against live sheets when building (doc 01 Q10, doc 07 Q4, doc 08 Q4) — **on hold**, no real PHI is being touched right now per the policy above.
 
 **Deferred, not started:** bringing the `stc_dashboard_v4` Attendance Audit (5-phase,
-Census/Running Attendance reconciliation, immutable snapshots) into this app's Weekly
-Census page. User said "nothing for now" when offered three approaches (thin API on
-the existing dashboard / rebuild against this app's own attendance data / just
-document it) — revisit by asking again, don't assume which approach.
+Census/Running Attendance reconciliation, immutable snapshots) into this app's Weekly Census page.
+User said "nothing for now" when offered three approaches — revisit by asking again, don't assume
+which approach.
 
-Standing `TODO(PHI)`: UA assignments etc. must move off localStorage before live data — this is exactly what the walking skeleton above is starting to address.
+Standing `TODO(PHI)`: reinforced this session, not just a UA-assignments note anymore — see "No real
+PHI policy" above.

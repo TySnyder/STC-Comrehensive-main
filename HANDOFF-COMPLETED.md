@@ -2,6 +2,105 @@
 
 > Completed handoffs, moved verbatim from the director. Never read wholesale — search with `rg`.
 
+---
+<!-- archived from HANDOFF.md on 2026-08-16 (deploy, PHI stopgap, Firebase, 4-agent sprint) -->
+
+**Daily Reminders wiring — committed and merged (8fc2037).** `sendDailyReminders` goes through
+`stc-backend`'s Apps Script (recipients, therapist calendars, client contact lookup all resolved
+server-side); `mode` (draft/send) passed through so the server enforces the same default-safe
+behavior as the client-side `dispatchEmail` choke point. `src/utils/dailyRemindersApi.ts`,
+`TaskTrackView.tsx` button wired with sending/sent/error status. Gate green at commit time.
+
+**Vercel deployment.** Linked repo to a new Vercel project `stc-comprehensive`
+(org `tyler-snyders-projects`, GitHub-connected) via the `vercel` CLI — had to pass
+`--project stc-comprehensive` explicitly since the repo directory name has uppercase letters,
+which Vercel's auto-derived name rejects. Live at **https://stc-comprehensive.vercel.app**.
+`VITE_GOOGLE_CLIENT_ID` and (at the time) `VITE_UA_API_URL` set as production env vars.
+
+**Real-PHI exposure found and stopped.** `stc-backend`'s `dailyReminderRecipients` /
+`tomorrowsAppointments` endpoints return real client contact-sheet data (spreadsheet id
+`1cfu4IwQVt4t09sNyhy7h9uzGIR-85x051u7gbXzdnoo`) over an anonymous, unauthenticated URL — this
+became reachable from the public internet the moment the Vercel site went live. User decision:
+**no real PHI on this app for now, everything runs on demo/mock data** until a real auth +
+Firestore/BAA path exists. Stopgap applied: removed `VITE_UA_API_URL` from Vercel production env
+(`vercel env rm ... production`) and redeployed — live site no longer calls the real backend;
+`listUaAssignments`/`sendDailyReminders` now fail harmlessly in production (console error / "Failed
+— retry" button state). Local `.env` and dev backend wiring untouched — only the live prod deploy
+was disconnected.
+
+**Firebase project provisioned** (per `.planning/PROJECT.md`'s original Phase-0 plan, which the user
+confirmed still stands over the Supabase-then-abandoned path): project `stc-operations-portal`
+(number `932616570891`, org `treatmentconsultants.net`). `firebase-tools` CLI installed globally
+(`npm install -g firebase-tools`); `firebase login --no-localhost` required interactive browser
+auth done by the user directly (non-interactive session can't complete OAuth). GCP project creation
+via CLI succeeded but attaching Firebase resources hit a 403 org-IAM permission error — user resolved
+it directly via the Firebase/GCP console (exact grant unknown to this session). Firestore database
+created (`(default)`, region `nam5`, default closed rules — nothing reads/writes it yet; had to
+enable the Firestore API first via the console link since `gcloud` wasn't authenticated as the right
+account). Web app registered (App ID `1:932616570891:web:a2c08e0dba50e8a4e1df0e`); SDK config
+(apiKey, authDomain, etc.) saved to local `.env` as `VITE_FIREBASE_*` — **not yet added to
+`.env.example`, no app code references it yet.** This is infrastructure-only; no data-layer wiring
+exists.
+
+**4-agent parallel sprint** ("chief of staff, run as many sub-agents as you can"). Launched 4
+`frontend-developer` agents in isolated `git worktree`s, each demo-data-only, `tsc --noEmit` gated,
+instructed to port logic from the sibling reference repo `stc_dashboard_v4` where it exists rather
+than inventing new design, and to flag (not guess) genuinely undefined business rules:
+
+1. **Attendance model overhaul** — two-block roster (DIOP+DOP / EIOP+EOP, independent records per
+   block), extended fields (`atResidence`, `excused`, `note`, `attendanceNotes`, `program`
+   snapshot), running TX-day totals (`src/utils/attendanceHelpers.ts`), per-block daily counts,
+   IND section reusing the existing Google Calendar integration, ported title-parsing regexes from
+   `stc_dashboard_v4/CalendarParser.js` into `src/utils/calendarParser.ts`. Mid-flight correction:
+   graduation target is a **per-client 30-day or 85-day track**, not a fixed 85 — relayed to the
+   agent via `SendMessage` after it had already finished once with a hardcoded 85; it went back and
+   added `Client.graduationTrack: 30 | 85` (types.ts), `graduationTarget()` reads it, `ClientsView`
+   displays `attended/target` per client, `data.ts` seeded with both tracks.
+2. **Auth scaffold** — `AuthContext`/`useAuth()`, `LoginView.tsx`, `src/utils/auth.ts` (demo/local,
+   4 hardcoded accounts one per role, shared password `demo`, swappable for real Firebase Auth
+   later), `App.tsx` gates the whole app behind `if (!user) return <LoginView/>`.
+3. **Call tracking module** — `CallTrackingView.tsx` + `AddCallLogModal.tsx`, `CallLogEntry` type,
+   fields sourced from `.planning/spreadsheets/03-call-tracking.md`'s real spreadsheet mapping
+   (nothing to port from v4 — genuinely new).
+4. **Settings cleanup** — `SettingsView.tsx` 982→175 lines; import-wizard's 13 loose `useState`s
+   collapsed into one `ImportFileState` discriminated union; tab panels split into
+   `src/components/settings/{FacilityProfileTab,ClinicalWorkflowsTab,SystemConnectionsTab,DataImportTab}.tsx`.
+
+**Merge order and conflicts** (settings → attendance → auth → call-tracking, safest-to-riskiest):
+- Settings vs. master: conflict in `SettingsView.tsx` — the agent's branch predated master's Email
+  Delivery Mode master-switch + signature editor (added in `f8b40cb`/`317f9cb`); moved that UI into
+  the new `ClinicalWorkflowsTab.tsx` by hand.
+- Attendance vs. master: conflicts in `.env.example`, `App.tsx`, `types.ts` — all additive, combined
+  both sides (VITE_GOOGLE_CLIENT_ID comment covering both Task Track and Attendance calendar
+  buttons; type re-exports).
+- Auth vs. master: only `Sidebar.tsx`'s icon import list conflicted (`ListChecks`+`LogOut`); `App.tsx`
+  and `types.ts` auto-merged cleanly.
+- Call tracking vs. master: branch was based on a stale commit (`8f0d116`, predating Task
+  Track/email-mode/auth) — manual reconciliation in `App.tsx` (imports, email-mode state block, new
+  `callLog` state) and `Sidebar.tsx` (icon imports); nav item and route wiring auto-merged fine.
+- Final merge commit: `afb9073`. Gate: `tsc --noEmit` clean, 400/400 vitest passing (up from the
+  80 noted pre-session — new test files came in with the merges), `vite build` succeeds. Worktrees
+  removed (`git worktree remove`) after merge; `worktree-agent-*` branches left in place, unpushed.
+- Smoke-tested only via `npm run dev` + `curl` (200 OK, no crash on load) — **no browser
+  click-through** (no browser automation tool available this session). Login flow and all 4 new
+  features are UNVERIFIED by an actual click-through.
+
+**Open questions surfaced by agents (not guessed, need a human answer):**
+- Auth: no per-role permission gating on tabs — `AppRole`/`user.role` exist but nothing reads them
+  yet; PROJECT.md never specified which roles see which views.
+- Attendance: `atResidence` implemented as an independent toggle (literal PROJECT.md wording) but
+  `.planning/spreadsheets/01-census-qtr.md` (2026-07-02, confirmed in v4's `CensusAudit.js`) models
+  residence as only meaningful when `virtual === true` — these two specs conflict, unresolved.
+- Attendance: no UI exists yet for staff to actually set `Client.graduationTrack` (30 vs 85) —
+  field + display logic exist, the picker doesn't.
+- Attendance: `enrollmentDays` (free-form, drives est.-discharge-date projection) and
+  `graduationTrack` (binary TX-day target) are separate fields that can drift out of sync for a
+  given client — nothing keeps them aligned; worth deciding whether to unify.
+- Call tracking: follow-up-status is color-coded in the real spreadsheet with no documented meaning
+  — a 5-value placeholder enum (`New`/`Follow-Up Needed`/`Scheduled`/`No Action Needed`/`Closed`)
+  was invented and needs confirming against real usage.
+- Call tracking: no defined hook/action for promoting a call-log entry into the (separately
+  out-of-scope) pending-admit pipeline.
 
 ---
 <!-- archived from HANDOFF.md on 2026-08-15 (walking skeleton) -->
