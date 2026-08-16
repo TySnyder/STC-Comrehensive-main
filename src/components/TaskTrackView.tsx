@@ -15,7 +15,8 @@ import {
   Clock,
   CalendarDays,
 } from 'lucide-react';
-import { Client, IndSession, UaAssignment, CallResult } from '../types';
+import { Client, IndSession, UaAssignment, CallResult, EmailDeliveryMode } from '../types';
+import { GCalEvent, requestGoogleCalendarToken, fetchTodaysCalendarEvents } from '../utils/googleCalendar';
 
 // Seed data is dated 2026-06-15 (see data.ts); Task Track reads "today" against
 // that same reference so the framework demonstrates populated content out of the box.
@@ -111,9 +112,10 @@ interface TaskTrackViewProps {
   indSessions: IndSession[];
   onUpdateIndSession: (sessionId: string, updates: { callResult?: CallResult }) => void;
   uaAssignments: UaAssignment[];
+  emailDeliveryMode: EmailDeliveryMode;
 }
 
-export default function TaskTrackView({ clients, indSessions, onUpdateIndSession, uaAssignments }: TaskTrackViewProps) {
+export default function TaskTrackView({ clients, indSessions, onUpdateIndSession, uaAssignments, emailDeliveryMode }: TaskTrackViewProps) {
   const todaysReminders = indSessions.filter(s => s.date === TODAY);
 
   const [uaTabs, setUaTabs] = useState<UaDocTab[]>(() =>
@@ -140,10 +142,21 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
 
   const activeUaTab = uaTabs.find(t => t.id === activeTabId);
 
-  // TODO: wire actual reminder-draft generation — deferred per user, button just needs to exist.
-  const handleSendDailyReminders = () => {};
-  // TODO: wire the two-email generation flow — deferred per user, button just needs to exist.
-  const handleGenerateEmails = () => {};
+  const handleSendDailyReminders = () => {
+    if (emailDeliveryMode === 'draft') {
+      // TODO: wire draft creation (e.g. Gmail API drafts.create) for the reminder summary email.
+    } else {
+      // TODO: wire immediate send (e.g. Gmail API messages.send) for the reminder summary email.
+    }
+  };
+
+  const handleGenerateEmails = () => {
+    if (emailDeliveryMode === 'draft') {
+      // TODO: wire draft creation for the two UA-result emails (client + internal).
+    } else {
+      // TODO: wire immediate send for the two UA-result emails (client + internal).
+    }
+  };
 
   const [taskView, setTaskView] = useState<'ongoing' | 'upcoming'>('ongoing');
   const [ongoingTasks, setOngoingTasks] = useState<TaskItem[]>(INITIAL_ONGOING_TASKS);
@@ -170,6 +183,23 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
   };
 
   const [railView, setRailView] = useState<'timeline' | 'calendar'>('timeline');
+  const [gcalStatus, setGcalStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [gcalEvents, setGcalEvents] = useState<GCalEvent[]>([]);
+  const [gcalError, setGcalError] = useState('');
+
+  const connectGoogleCalendar = async () => {
+    setGcalStatus('connecting');
+    setGcalError('');
+    try {
+      const token = await requestGoogleCalendarToken();
+      const events = await fetchTodaysCalendarEvents(token);
+      setGcalEvents(events);
+      setGcalStatus('connected');
+    } catch (err) {
+      setGcalError(err instanceof Error ? err.message : 'Could not connect to Google Calendar.');
+      setGcalStatus('error');
+    }
+  };
 
   return (
     <div id="task-track-wrapper" className="space-y-6">
@@ -446,11 +476,36 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
                   ))}
                 </div>
               </div>
+            ) : gcalStatus === 'connected' ? (
+              <div className="flex-1 p-4 overflow-y-auto max-h-[720px]">
+                <div className="flex flex-col gap-3">
+                  {gcalEvents.map(ev => (
+                    <div key={ev.id} className="pb-3 border-b border-slate-100 last:border-0">
+                      <div className="font-mono text-[10px] text-indigo-600">{ev.start}{ev.end && ` – ${ev.end}`}</div>
+                      <h4 className="text-xs font-semibold text-slate-800 mt-0.5">{ev.title}</h4>
+                    </div>
+                  ))}
+                  {gcalEvents.length === 0 && (
+                    <p className="text-xs text-slate-400 italic text-center py-6">No events on your calendar today.</p>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="flex-1 p-6 flex flex-col items-center justify-center text-center gap-2">
                 <CalendarDays className="w-6 h-6 text-slate-300" />
-                <p className="text-xs text-slate-400">Google Calendar isn't connected yet.</p>
-                <p className="text-[11px] text-slate-300">Read-only calendar sync is a planned follow-up.</p>
+                {gcalStatus === 'error' ? (
+                  <p className="text-xs text-red-500">{gcalError}</p>
+                ) : (
+                  <p className="text-xs text-slate-400">Connect your Google Calendar to see today's events here.</p>
+                )}
+                <button
+                  onClick={connectGoogleCalendar}
+                  disabled={gcalStatus === 'connecting'}
+                  className="mt-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                >
+                  {gcalStatus === 'connecting' ? 'Connecting…' : 'Connect Google Calendar'}
+                </button>
+                <p className="text-[11px] text-slate-300">Read-only — nothing is written back to your calendar.</p>
               </div>
             )}
           </div>

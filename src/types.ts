@@ -31,6 +31,10 @@ export interface AttendanceEntry {
 
 export type CallResult = 'Pending' | 'Confirmed' | 'No Answer' | 'Left Voicemail' | 'Rescheduled' | 'Cancelled';
 
+// Global switch every email-producing feature checks before acting: 'draft'
+// stops short and leaves a draft for review; 'send' dispatches immediately.
+export type EmailDeliveryMode = 'draft' | 'send';
+
 export interface IndSession {
   id: string;
   clientId: string;

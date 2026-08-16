@@ -32,8 +32,9 @@ import {
   INITIAL_INSURANCE_BILLING_NOTES,
   INITIAL_SESSIONS,
   INITIAL_SLOTS,
+  DEFAULT_EMAIL_SIGNATURE,
 } from './data';
-import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult } from './types';
+import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode } from './types';
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
@@ -52,6 +53,8 @@ export default function App() {
   const [scheduleSlots, setScheduleSlots] = useLocalStorageState<GridSlot[]>('stc-schedule-slots', INITIAL_SLOTS);
   const [uaAssignments, setUaAssignments] = useLocalStorageState<UaAssignment[]>('stc-ua-assignments', []);
   const [timeOffRequests, setTimeOffRequests] = useLocalStorageState<TimeOffRequest[]>('stc-time-off', []);
+  const [emailDeliveryMode, setEmailDeliveryMode] = useLocalStorageState<EmailDeliveryMode>('stc-email-delivery-mode', 'draft');
+  const [emailSignature, setEmailSignature] = useLocalStorageState<string>('stc-email-signature', DEFAULT_EMAIL_SIGNATURE);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [dischargingClient, setDischargingClient] = useState<Client | null>(null);
 
@@ -276,6 +279,7 @@ export default function App() {
                 indSessions={indSessions}
                 onUpdateIndSession={handleUpdateIndSession}
                 uaAssignments={uaAssignments}
+                emailDeliveryMode={emailDeliveryMode}
               />
             )}
 
@@ -392,6 +396,10 @@ export default function App() {
                 onImportCensus={handleImportCensus}
                 onUpdateDiagnoses={handleUpdateDiagnoses}
                 onImportClients={handleImportClients}
+                emailDeliveryMode={emailDeliveryMode}
+                setEmailDeliveryMode={setEmailDeliveryMode}
+                emailSignature={emailSignature}
+                setEmailSignature={setEmailSignature}
               />
             )}
 

@@ -19,7 +19,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { SYSTEM_CONNECTIONS } from '../data';
-import { Client, CensusEntry } from '../types';
+import { Client, CensusEntry, EmailDeliveryMode } from '../types';
 import {
   ParsedRow,
   ParsedContactClient,
@@ -41,12 +41,16 @@ interface SettingsViewProps {
   onImportCensus: (entries: CensusEntry[]) => void;
   onUpdateDiagnoses: (updates: { clientId: string; diagnoses: string[] }[]) => void;
   onImportClients: (clients: Client[]) => void;
+  emailDeliveryMode: EmailDeliveryMode;
+  setEmailDeliveryMode: (mode: EmailDeliveryMode) => void;
+  emailSignature: string;
+  setEmailSignature: (signature: string) => void;
 }
 
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function SettingsView({ clients, censusEntries, onImportCensus, onUpdateDiagnoses, onImportClients }: SettingsViewProps) {
+export default function SettingsView({ clients, censusEntries, onImportCensus, onUpdateDiagnoses, onImportClients, emailDeliveryMode, setEmailDeliveryMode, emailSignature, setEmailSignature }: SettingsViewProps) {
   const [activeSegment, setActiveSegment] = useState<'profile' | 'workflows' | 'integrations' | 'import'>('profile');
 
   // Facility profile
@@ -399,6 +403,53 @@ export default function SettingsView({ clients, censusEntries, onImportCensus, o
                     <p className="text-[10px] text-slate-400 leading-relaxed">Integrates browser-native speech-to-text directly in clinical note modals to speed up multidisciplinary reports.</p>
                   </div>
                   <input type="checkbox" checked={enableVoiceDictation} onChange={() => {}} className="w-4 h-4 text-indigo-600 accent-indigo-600 mt-0.5" />
+                </div>
+                <div className="flex items-start justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="max-w-md space-y-1">
+                    <h4 className="text-xs font-bold text-slate-800">Email Delivery Mode</h4>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                      Governs every feature that produces an email (Daily Reminders, UA-generated emails, etc.).
+                      Draft mode stops short and leaves the message for review before anything goes out.
+                    </p>
+                  </div>
+                  <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0">
+                    <button
+                      onClick={() => setEmailDeliveryMode('draft')}
+                      className={`px-3 py-1.5 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                        emailDeliveryMode === 'draft' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Draft
+                    </button>
+                    <button
+                      onClick={() => setEmailDeliveryMode('send')}
+                      className={`px-3 py-1.5 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                        emailDeliveryMode === 'send' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-800">Email Signature</h4>
+                    <p className="text-[10px] text-slate-400 leading-relaxed">Appended to every app-generated email once sending is wired up.</p>
+                  </div>
+                  <textarea
+                    value={emailSignature}
+                    onChange={e => setEmailSignature(e.target.value)}
+                    rows={4}
+                    className="w-full text-[10px] font-mono px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    placeholder="Paste signature HTML…"
+                  />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">Preview</p>
+                    <div
+                      className="text-xs bg-white border border-slate-200 rounded-lg p-3 max-h-56 overflow-y-auto"
+                      dangerouslySetInnerHTML={{ __html: emailSignature }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

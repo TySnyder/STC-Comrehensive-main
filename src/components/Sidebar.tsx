@@ -28,8 +28,8 @@ interface SidebarProps {
 
 export default function Sidebar({ currentTab, setTab, openNoteModal }: SidebarProps) {
   const navItems = [
-    { id: 'tasktrack', label: 'Task Track', icon: ListChecks },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'tasktrack', label: 'Task Track', icon: ListChecks },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
     { id: 'census', label: 'Weekly Census', icon: CalendarDays },

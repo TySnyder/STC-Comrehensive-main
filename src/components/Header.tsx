@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Clock, Calendar, CheckCircle, AlertCircle, User, Users } from 'lucide-react';
+import { Search, Bell, Clock, Calendar, CheckCircle, AlertCircle, User, Users, Fingerprint } from 'lucide-react';
 import { Client, Staff } from '../types';
 
 interface HeaderProps {
@@ -21,6 +21,7 @@ interface HeaderProps {
 export default function Header({ title, searchQuery, setSearchQuery, openNoteModal, clients, staff, onSelectClient, onNavigateToStaff }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
+  const [clockedIn, setClockedIn] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const query = searchQuery.trim().toLowerCase();
@@ -158,7 +159,7 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
       </div>
 
       {/* Operations Controls & Indicators */}
-      <div id="header-controls" className="flex items-center gap-6">
+      <div id="header-controls" className="flex items-center gap-3">
         
         {/* Live Clinic Time */}
         <div id="clinic-running-indicator" className="hidden lg:flex items-center gap-2.5 font-mono text-[11px] text-slate-500 bg-slate-50 px-3 py-1.5 rounded-md border border-[#f1f5f9]">
@@ -169,6 +170,18 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
           <Calendar className="w-3 h-3 text-slate-400" />
           <span>{time.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
         </div>
+
+        {/* Clock In / Out */}
+        <button
+          id="btn-header-clock-in"
+          onClick={() => setClockedIn(!clockedIn)}
+          title={clockedIn ? 'Clocked in — click to clock out' : 'Click to clock in'}
+          className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+            clockedIn ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+          }`}
+        >
+          <Fingerprint className="w-5 h-5" />
+        </button>
 
         {/* Notifications and Alerts Bell */}
         <div className="relative">
