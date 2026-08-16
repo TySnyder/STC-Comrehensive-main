@@ -8,6 +8,21 @@ import { Video, Search, ExternalLink } from 'lucide-react';
 import { Client, VirtualRequestEntry } from '../types';
 import AddVirtualRequestModal from './AddVirtualRequestModal';
 
+// Same DIOP/DOP (day) and EIOP/EOP (evening) block-naming convention as
+// AttendanceView's section headers and AddVirtualRequestModal's picker.
+const BLOCK_LABELS: Record<string, [string, string]> = {
+  DIOP: ['DIOP', 'DOP'],
+  DOP: ['DIOP', 'DOP'],
+  EIOP: ['EIOP', 'EOP'],
+  EOP: ['EIOP', 'EOP'],
+};
+
+function blockLabel(program: string | undefined, block: 'A' | 'B' | undefined): string {
+  if (!block) return '—';
+  const [a, b] = BLOCK_LABELS[program ?? ''] ?? ['Block A', 'Block B'];
+  return block === 'A' ? a : b;
+}
+
 interface VirtualRequestsViewProps {
   requests: VirtualRequestEntry[];
   clients: Client[];
@@ -52,8 +67,8 @@ export default function VirtualRequestsView({ requests, clients, staffNames, onA
             className="text-xs font-sans border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
           >
             <option value="All">All blocks</option>
-            <option value="A">Block A</option>
-            <option value="B">Block B</option>
+            <option value="A">1st block (DIOP / EIOP)</option>
+            <option value="B">2nd block (DOP / EOP)</option>
           </select>
         </div>
 
@@ -102,7 +117,9 @@ export default function VirtualRequestsView({ requests, clients, staffNames, onA
                       <p className="font-medium text-slate-700">{r.clientName}</p>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="text-xs font-mono text-slate-500">{r.block ?? '—'}</span>
+                      <span className="text-xs font-mono text-slate-500">
+                        {blockLabel(clients.find(c => c.id === r.clientId)?.program, r.block)}
+                      </span>
                     </td>
                     <td className="py-3 px-4">
                       <p className="text-xs text-slate-500 max-w-64">{r.reason}</p>

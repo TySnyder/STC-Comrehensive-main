@@ -21,6 +21,16 @@ function generateId() {
   return `vreq-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// Block A/B labels depend on whether the client's track is day (DIOP/DOP) or
+// evening (EIOP/EOP) — same DIOP="block A"/DOP="block B" convention AttendanceView
+// already uses for its section headers.
+const BLOCK_LABELS: Record<string, [string, string]> = {
+  DIOP: ['DIOP', 'DOP'],
+  DOP: ['DIOP', 'DOP'],
+  EIOP: ['EIOP', 'EOP'],
+  EOP: ['EIOP', 'EOP'],
+};
+
 const emptyForm = (today: string) => ({
   clientId: '',
   date: today,
@@ -47,6 +57,7 @@ export default function AddVirtualRequestModal({ isOpen, onClose, onSave, client
   const set = (field: string, value: unknown) => setForm(f => ({ ...f, [field]: value }));
 
   const selectedClient = clients.find(c => c.id === form.clientId);
+  const [blockALabel, blockBLabel] = BLOCK_LABELS[selectedClient?.program ?? ''] ?? ['Block A', 'Block B'];
 
   // Only events whose title maps to the requesting client's program — the
   // integration fetches "today's" events (existing API limit, see
@@ -153,8 +164,8 @@ export default function AddVirtualRequestModal({ isOpen, onClose, onSave, client
             )}
             {field('Program Block', 'block',
               <select value={form.block} onChange={e => set('block', e.target.value as 'A' | 'B')} className={selectCls}>
-                <option value="A">Block A</option>
-                <option value="B">Block B</option>
+                <option value="A">{blockALabel}</option>
+                <option value="B">{blockBLabel}</option>
               </select>
             )}
           </div>
