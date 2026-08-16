@@ -4,6 +4,18 @@
 
 
 ---
+<!-- archived from HANDOFF.md on 2026-08-15 -->
+
+- Clean-code refactor + all spreadsheet-mapping build targets: **committed** (`8f0d116`, `402456e`). Handoff system migrated to root director/archive format (`d85612c`).
+- **Task Track view built and committed** (`285985d`): new nav page — ticker bar, tabbed Daily Reminders/UA panel (real `IndSession`/`UaAssignment` data, functional call-result dropdown), Groups Today, Ongoing/Completed↔Upcoming tasks, right-rail Timeline↔Google Calendar toggle. `src/components/TaskTrackView.tsx`.
+- **Committed** (`317f9cb`):
+  - Nav order: Dashboard first, Task Track second (`Sidebar.tsx`).
+  - Google Calendar OAuth live and confirmed working (real user sign-in tested end to end). Read-only, Google Identity Services token client, no backend. `src/utils/googleCalendar.ts`, Client ID in `.env` (gitignored) as `VITE_GOOGLE_CLIENT_ID`. Authorized JS origin `http://localhost:3004` registered on the OAuth client in Google Cloud Console (client name "STC Dashboard", id `600351493590-...`). A `google.env` file with the OAuth client's real Client Secret exists locally at repo root — gitignored, not needed by this flow.
+  - Global Email Delivery Mode (draft/send) first version — later superseded by the master-switch redesign, see current HANDOFF.md.
+  - Email signature — `DEFAULT_EMAIL_SIGNATURE` in `data.ts`, persisted via `stc-email-signature`, editable + live preview in Settings → Clinical Workflows.
+  - Header: Fingerprint clock-in icon added next to the bell; `header-controls` gap halved (`gap-6`→`gap-3`).
+
+---
 <!-- archived from .planning/HANDOFF-CLEAN-CODE-REFACTOR.md on 2026-07-18 -->
 
 # HANDOFF — Clean Code refactor (2026-07-05)

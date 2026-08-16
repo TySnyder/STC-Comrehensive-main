@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Megaphone,
   Plus,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Client, IndSession, UaAssignment, CallResult, EmailDeliveryMode } from '../types';
 import { GCalEvent, requestGoogleCalendarToken, fetchTodaysCalendarEvents } from '../utils/googleCalendar';
+import { getTodaysTimeline } from '../utils/timelineData';
 
 // Seed data is dated 2026-06-15 (see data.ts); Task Track reads "today" against
 // that same reference so the framework demonstrates populated content out of the box.
@@ -44,22 +45,6 @@ interface UaDocTab {
   results: string;
   notes: string;
 }
-
-interface TimelineEvent {
-  time: string;
-  title: string;
-  subtitle: string;
-  state: 'past' | 'current' | 'future';
-}
-
-// Placeholder daily agenda — no "today's schedule" data model exists yet to derive this from.
-const TIMELINE_EVENTS: TimelineEvent[] = [
-  { time: '08:00 AM', title: 'Staff Huddle', subtitle: 'Conference Rm A', state: 'past' },
-  { time: '09:00 AM', title: 'IOP Group Therapy', subtitle: 'Lead: Dr. Smith', state: 'current' },
-  { time: '11:30 AM', title: '1:1 Session', subtitle: 'Office 4', state: 'future' },
-  { time: '01:00 PM', title: 'Clinical Review Board', subtitle: 'Directors Only', state: 'future' },
-  { time: '03:30 PM', title: 'Discharge Planning', subtitle: '', state: 'future' },
-];
 
 // Placeholder — no "today's groups" data model exists yet to derive this from.
 const GROUPS_TODAY = [
@@ -183,6 +168,11 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
   };
 
   const [railView, setRailView] = useState<'timeline' | 'calendar'>('timeline');
+  const [timelineEvents, setTimelineEvents] = useState(() => getTodaysTimeline());
+  useEffect(() => {
+    const timer = setInterval(() => setTimelineEvents(getTodaysTimeline()), 60000);
+    return () => clearInterval(timer);
+  }, []);
   const [gcalStatus, setGcalStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [gcalEvents, setGcalEvents] = useState<GCalEvent[]>([]);
   const [gcalError, setGcalError] = useState('');
@@ -458,7 +448,7 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
               <div className="flex-1 p-4 overflow-y-auto max-h-[720px] relative">
                 <div className="absolute left-[54px] top-4 bottom-4 w-px bg-slate-200" />
                 <div className="flex flex-col gap-5 relative">
-                  {TIMELINE_EVENTS.map((ev, i) => (
+                  {timelineEvents.map((ev, i) => (
                     <div key={i} className={`flex gap-3 ${ev.state === 'past' ? 'opacity-50' : ''}`}>
                       <div className={`font-mono w-11 text-right pt-0.5 text-[10px] ${ev.state === 'current' ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
                         {ev.time}

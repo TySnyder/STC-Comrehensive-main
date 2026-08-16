@@ -12,10 +12,12 @@ import {
   Video,
   ChevronRight,
   UserPlus,
+  FileText,
 } from 'lucide-react';
 import { Client, ClinicalNote, AttendanceEntry, UaFrequency } from '../types';
 import { estDischargeDate, DEFAULT_ENROLLMENT_DAYS, MIN_ENROLLMENT_DAYS } from '../utils/dcDateHelpers';
 import AddClientModal from './AddClientModal';
+import ClientFormModal from './ClientFormModal';
 
 interface ClientsViewProps {
   clients: Client[];
@@ -139,6 +141,7 @@ export default function ClientsView({
   const [filterProgram, setFilterProgram] = useState('All');
   const [filterInsurance, setFilterInsurance] = useState('All');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showFormModal, setShowFormModal] = useState(false);
 
   const filteredClients = clients.filter(client => {
     const matchesProgram = filterProgram === 'All' || client.program === filterProgram;
@@ -187,6 +190,12 @@ export default function ClientsView({
               className="bg-indigo-600 hover:bg-indigo-700 text-white font-sans font-medium text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" /> Add Patient Note
+            </button>
+            <button
+              onClick={() => setShowFormModal(true)}
+              className="bg-white hover:bg-slate-50 text-slate-700 font-sans font-medium text-xs py-2 px-4 rounded-lg flex items-center gap-1.5 cursor-pointer shadow-xs border border-slate-200"
+            >
+              <FileText className="w-4 h-4" /> Client Form
             </button>
             <span className="text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1.5 rounded-lg flex items-center gap-1">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" /> Active Case
@@ -489,6 +498,12 @@ export default function ClientsView({
 
           </div>
         </div>
+
+        <ClientFormModal
+          isOpen={showFormModal}
+          onClose={() => setShowFormModal(false)}
+          clientName={selectedClient.name}
+        />
 
       </div>
     );

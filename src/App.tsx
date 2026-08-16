@@ -21,6 +21,7 @@ import TaskTrackView, { TaskTrackTicker } from './components/TaskTrackView';
 import DischargeClientModal from './components/DischargeClientModal';
 import { applyDischarge, reverseDischarge, updateEpisode, readmitClient, DischargeInput } from './utils/episodeHelpers';
 import { useLocalStorageState } from './utils/useLocalStorageState';
+import { dispatchEmail } from './utils/gmail';
 
 import {
   INITIAL_CLIENTS,
@@ -53,7 +54,49 @@ export default function App() {
   const [scheduleSlots, setScheduleSlots] = useLocalStorageState<GridSlot[]>('stc-schedule-slots', INITIAL_SLOTS);
   const [uaAssignments, setUaAssignments] = useLocalStorageState<UaAssignment[]>('stc-ua-assignments', []);
   const [timeOffRequests, setTimeOffRequests] = useLocalStorageState<TimeOffRequest[]>('stc-time-off', []);
-  const [emailDeliveryMode, setEmailDeliveryMode] = useLocalStorageState<EmailDeliveryMode>('stc-email-delivery-mode', 'draft');
+  const [emailDeliveryMode, setEmailDeliveryModeRaw] = useLocalStorageState<EmailDeliveryMode>('stc-email-delivery-mode', 'draft');
+  // Settings' master switch: while on, every email sends and STAYS in send
+  // mode — no auto-revert. The header icon is the lighter one-shot control,
+  // only meaningful while the master is off.
+  const [emailSendMaster, setEmailSendMasterRaw] = useLocalStorageState<boolean>('stc-email-send-master', false);
+  const effectiveEmailMode: EmailDeliveryMode = emailSendMaster ? 'send' : emailDeliveryMode;
+
+  // Header icon's one-shot toggle. No-op while the Settings master is on —
+  // that's the only thing governing send behavior at that point.
+  const setEmailDeliveryMode = (mode: EmailDeliveryMode) => {
+    if (emailSendMaster) return;
+    if (mode === 'send' && emailDeliveryMode !== 'send') {
+      const confirmed = window.confirm(
+        'Switch to SEND mode for the next email? Reverts to Draft automatically right after it goes out.'
+      );
+      if (!confirmed) return;
+    }
+    setEmailDeliveryModeRaw(mode);
+  };
+
+  // Settings' master switch. Sticky on purpose — arming it requires
+  // confirmation, and turning it off is always immediate/unconfirmed.
+  const setEmailSendMaster = (on: boolean) => {
+    if (on && !emailSendMaster) {
+      const confirmed = window.confirm(
+        'Turn ON the Send master switch? Every email-producing action will send immediately from now on, and will NOT revert automatically — you have to come back here to turn it off.'
+      );
+      if (!confirmed) return;
+    }
+    setEmailSendMasterRaw(on);
+    setEmailDeliveryModeRaw(on ? 'send' : 'draft');
+  };
+
+  // Single choke point for every email-producing feature. Auto-reverts the
+  // one-shot header toggle back to Draft right after a real send — but only
+  // when the Settings master isn't the one holding it open.
+  const handleDispatchEmail = async (
+    token: string,
+    opts: { to: string[]; subject: string; body: string }
+  ) => {
+    await dispatchEmail(token, { ...opts, mode: effectiveEmailMode });
+    if (effectiveEmailMode === 'send' && !emailSendMaster) setEmailDeliveryModeRaw('draft');
+  };
   const [emailSignature, setEmailSignature] = useLocalStorageState<string>('stc-email-signature', DEFAULT_EMAIL_SIGNATURE);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [dischargingClient, setDischargingClient] = useState<Client | null>(null);
@@ -265,6 +308,10 @@ export default function App() {
           staff={staffList}
           onSelectClient={handleSelectClient}
           onNavigateToStaff={() => setTab('staff')}
+          emailDeliveryMode={effectiveEmailMode}
+          setEmailDeliveryMode={setEmailDeliveryMode}
+          emailSendMaster={emailSendMaster}
+          onDispatchEmail={handleDispatchEmail}
         />
 
         {/* Dynamic central viewport */}
@@ -279,7 +326,7 @@ export default function App() {
                 indSessions={indSessions}
                 onUpdateIndSession={handleUpdateIndSession}
                 uaAssignments={uaAssignments}
-                emailDeliveryMode={emailDeliveryMode}
+                emailDeliveryMode={effectiveEmailMode}
               />
             )}
 
@@ -396,8 +443,8 @@ export default function App() {
                 onImportCensus={handleImportCensus}
                 onUpdateDiagnoses={handleUpdateDiagnoses}
                 onImportClients={handleImportClients}
-                emailDeliveryMode={emailDeliveryMode}
-                setEmailDeliveryMode={setEmailDeliveryMode}
+                emailSendMaster={emailSendMaster}
+                setEmailSendMaster={setEmailSendMaster}
                 emailSignature={emailSignature}
                 setEmailSignature={setEmailSignature}
               />

@@ -4,8 +4,10 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, Clock, Calendar, CheckCircle, AlertCircle, User, Users, Fingerprint } from 'lucide-react';
-import { Client, Staff } from '../types';
+import { Search, Bell, Clock, Calendar, CheckCircle, AlertCircle, User, Users, Fingerprint, Send, PenLine } from 'lucide-react';
+import { Client, Staff, EmailDeliveryMode } from '../types';
+import { CLOCK_IN_RECIPIENTS } from '../data';
+import { requestGmailToken } from '../utils/gmail';
 
 interface HeaderProps {
   title: string;
@@ -16,12 +18,17 @@ interface HeaderProps {
   staff: Staff[];
   onSelectClient: (client: Client) => void;
   onNavigateToStaff: () => void;
+  emailDeliveryMode: EmailDeliveryMode;
+  setEmailDeliveryMode: (mode: EmailDeliveryMode) => void;
+  emailSendMaster: boolean;
+  onDispatchEmail: (token: string, opts: { to: string[]; subject: string; body: string }) => Promise<void>;
 }
 
-export default function Header({ title, searchQuery, setSearchQuery, openNoteModal, clients, staff, onSelectClient, onNavigateToStaff }: HeaderProps) {
+export default function Header({ title, searchQuery, setSearchQuery, openNoteModal, clients, staff, onSelectClient, onNavigateToStaff, emailDeliveryMode, setEmailDeliveryMode, emailSendMaster, onDispatchEmail }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [clockedIn, setClockedIn] = useState(false);
+  const [clockInStatus, setClockInStatus] = useState<'idle' | 'sending' | 'error'>('idle');
   const searchRef = useRef<HTMLDivElement>(null);
 
   const query = searchQuery.trim().toLowerCase();
@@ -60,6 +67,26 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
   const handleSelectStaff = () => {
     setSearchQuery('');
     onNavigateToStaff();
+  };
+
+  const handleToggleClockIn = async () => {
+    const nextClockedIn = !clockedIn;
+    setClockedIn(nextClockedIn);
+    if (!nextClockedIn) return; // only clocking IN sends a notification
+
+    setClockInStatus('sending');
+    try {
+      const token = await requestGmailToken();
+      const mmddyy = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+      await onDispatchEmail(token, {
+        to: CLOCK_IN_RECIPIENTS,
+        subject: `STC SF Office Tyler Snyder SOS/EOS - ${mmddyy}`,
+        body: 'Clocking in',
+      });
+      setClockInStatus('idle');
+    } catch {
+      setClockInStatus('error');
+    }
   };
 
   useEffect(() => {
@@ -174,13 +201,22 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
         {/* Clock In / Out */}
         <button
           id="btn-header-clock-in"
-          onClick={() => setClockedIn(!clockedIn)}
-          title={clockedIn ? 'Clocked in — click to clock out' : 'Click to clock in'}
-          className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-            clockedIn ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+          onClick={handleToggleClockIn}
+          title={
+            clockInStatus === 'error'
+              ? 'Clock-in email failed to send — click to retry'
+              : clockedIn ? 'Clocked in — click to clock out' : 'Click to clock in'
+          }
+          className={`relative p-1.5 rounded-full transition-colors cursor-pointer ${
+            clockInStatus === 'error'
+              ? 'text-red-600 bg-red-50 hover:bg-red-100'
+              : clockedIn ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
           }`}
         >
           <Fingerprint className="w-5 h-5" />
+          {clockInStatus === 'sending' && (
+            <span className="absolute top-1 right-1 w-2 h-2 bg-amber-400 rounded-full ring-2 ring-white animate-pulse"></span>
+          )}
         </button>
 
         {/* Notifications and Alerts Bell */}
@@ -230,6 +266,24 @@ export default function Header({ title, searchQuery, setSearchQuery, openNoteMod
             </div>
           )}
         </div>
+
+        {/* Email Delivery Mode — Draft vs Send, cross-fades in place */}
+        <button
+          id="header-email-mode-toggle"
+          disabled={emailSendMaster}
+          onClick={() => setEmailDeliveryMode(emailDeliveryMode === 'draft' ? 'send' : 'draft')}
+          title={
+            emailSendMaster
+              ? 'Locked to SEND by the Settings master switch — turn it off in Settings'
+              : emailDeliveryMode === 'draft' ? 'Emails are saved as drafts — click to send the next one instead' : 'Sending the next email immediately. Click to switch back to drafts.'
+          }
+          className={`relative w-7 h-7 rounded-full transition-colors ${emailSendMaster ? 'cursor-not-allowed' : 'cursor-pointer'} ${
+            emailDeliveryMode === 'send' ? 'text-red-600 bg-red-50 hover:bg-red-100 ring-2 ring-red-200 animate-pulse' : 'text-indigo-600 hover:bg-slate-100'
+          }`}
+        >
+          <PenLine className={`w-4 h-4 absolute inset-0 m-auto transition-opacity duration-200 ${emailDeliveryMode === 'draft' ? 'opacity-100' : 'opacity-0'}`} />
+          <Send className={`w-4 h-4 absolute inset-0 m-auto transition-opacity duration-200 ${emailDeliveryMode === 'send' ? 'opacity-100' : 'opacity-0'}`} />
+        </button>
 
         {/* Separator */}
         <span className="w-px h-6 bg-slate-200" />
