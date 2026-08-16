@@ -43,7 +43,7 @@ import {
   INITIAL_CALL_LOG,
   INITIAL_VIRTUAL_REQUESTS,
 } from './data';
-import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode, AttendanceUpdate, CallLogEntry, VirtualRequestEntry } from './types';
+import { IndSession, CensusEntry, InsuranceBillingNote, GridSlot, TimeOffRequest, UaAssignment, Episode, CallResult, EmailDeliveryMode, AttendanceUpdate, CallLogEntry, VirtualRequestEntry, AttendanceTotalOverride } from './types';
 import { Client, Staff, ClinicalNote, OperationalRisk } from './types';
 
 export default function App() {
@@ -65,6 +65,9 @@ export default function App() {
   const [billingNotes, setBillingNotes] = useFirestoreState<InsuranceBillingNote>('billingNotes', INITIAL_INSURANCE_BILLING_NOTES, n => `${n.clientId}_${n.weekStart}`);
   const [scheduleSlots, setScheduleSlots] = useFirestoreState<GridSlot>('scheduleSlots', INITIAL_SLOTS, s => s.id);
   const [uaAssignments, setUaAssignments] = useFirestoreState<UaAssignment>('uaAssignments', [], a => a.id);
+  // Manual corrections on top of computed running-attendance totals (see
+  // AttendanceTotalOverride) — keyed by clientId, one override per client.
+  const [attendanceOverrides, setAttendanceOverrides] = useFirestoreState<AttendanceTotalOverride>('attendanceOverrides', [], o => o.clientId);
 
   // Proof-of-life: stc-backend walking skeleton (see HANDOFF.md). Not wired
   // into uaAssignments state yet — just confirms the browser can reach the
@@ -287,6 +290,13 @@ export default function App() {
     });
   };
 
+  const handleUpdateAttendanceOverride = (override: AttendanceTotalOverride) => {
+    setAttendanceOverrides(prev => {
+      const idx = prev.findIndex(o => o.clientId === override.clientId);
+      return idx >= 0 ? prev.map(o => o.clientId === override.clientId ? override : o) : [...prev, override];
+    });
+  };
+
   const openNoteModalWithContext = (clientId?: string, clientName?: string) => {
     setPreselectedClientId(clientId);
     setNoteModalOpen(true);
@@ -413,6 +423,8 @@ export default function App() {
                 onSaveCensusEntry={handleSaveCensusEntry}
                 onRemoveCensusEntry={handleRemoveCensusEntry}
                 onUpdateBillingNote={handleUpdateBillingNote}
+                attendanceOverrides={attendanceOverrides}
+                onUpdateAttendanceOverride={handleUpdateAttendanceOverride}
               />
             )}
 

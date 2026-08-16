@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { LayoutGrid, BarChart3, Milestone, Activity } from 'lucide-react';
-import { Client, CensusEntry, InsuranceBillingNote, ProgramBlock } from '../types';
+import { Client, CensusEntry, InsuranceBillingNote, ProgramBlock, AttendanceTotalOverride } from '../types';
 import { adaptClientWithEntries, TempClient, DailyAttendance } from '../utils/clientAdapter';
 import { getMonday, addDays, weekDaysFrom, weekNavLabel, formatWeekRange } from '../utils/weekHelpers';
 import WeekNavPill from './shared/WeekNavPill';
@@ -33,6 +33,8 @@ interface CensusViewProps {
   onSaveCensusEntry: (entry: CensusEntry) => void;
   onRemoveCensusEntry: (entryId: string) => void;
   onUpdateBillingNote: (note: InsuranceBillingNote) => void;
+  attendanceOverrides: AttendanceTotalOverride[];
+  onUpdateAttendanceOverride: (override: AttendanceTotalOverride) => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -44,6 +46,8 @@ export default function CensusView({
   onSaveCensusEntry,
   onRemoveCensusEntry,
   onUpdateBillingNote,
+  attendanceOverrides,
+  onUpdateAttendanceOverride,
 }: CensusViewProps) {
   const todayMonday = getMonday(new Date().toISOString().slice(0, 10));
 
@@ -54,13 +58,34 @@ export default function CensusView({
   const [billingClientId, setBillingClientId] = useState<string | null>(null);
 
   useEffect(() => {
-    setTempClients(clients.map(c => adaptClientWithEntries(c, censusEntries)));
-  }, [clients, censusEntries]);
+    setTempClients(clients.map(c => {
+      const base = adaptClientWithEntries(c, censusEntries);
+      const override = attendanceOverrides.find(o => o.clientId === c.id);
+      return override ? { ...base, ...override } : base;
+    }));
+  }, [clients, censusEntries, attendanceOverrides]);
 
+  // TempClient's totals (fullDaysAtt, excused, etc.) are computed from
+  // censusEntries/attendanceHistory — there's no single record to "save" an
+  // edit to, so a manual fine-tune persists as an AttendanceTotalOverride
+  // that's merged back on top of the computed values above.
   const handleUpdateTempClient = useCallback((updated: TempClient) => {
-    setTempClients(prev => prev.map(c => c.id === updated.id ? updated : c));
-  }, []);
+    onUpdateAttendanceOverride({
+      clientId: updated.id,
+      fullDaysAtt: updated.fullDaysAtt,
+      excused: updated.excused,
+      unexcused: updated.unexcused,
+      halfDaysAtt: updated.halfDaysAtt,
+      possible: updated.possible,
+      virtualCount: updated.virtualCount,
+      dcProjectionStatus: updated.dcProjectionStatus,
+    });
+  }, [onUpdateAttendanceOverride]);
 
+  // NOTE: only used by the "roster" sub-tab (WeeklyCensusGrid), which has no
+  // button in SUB_TABS and is currently unreachable from the UI — left as a
+  // local-only edit (same as before) rather than wired to real persistence,
+  // since there's nothing to test it against until that tab is exposed.
   const handleUpdateTempAttendance = useCallback((clientId: string, day: keyof TempClient['weeklyAttendance'], data: DailyAttendance) => {
     setTempClients(prev => prev.map(c => {
       if (c.id !== clientId) return c;

@@ -198,6 +198,21 @@ export interface InsuranceBillingNote {
   notes: string;
 }
 
+// Manual correction on top of the computed running-attendance totals
+// (AttendanceTotals' "Fine-Tune" modal) — these fields are normally derived
+// from CensusEntry/AttendanceEntry, so there's no single underlying record to
+// edit directly; an override is the only honest way to persist a manual fix.
+export interface AttendanceTotalOverride {
+  clientId: string;
+  fullDaysAtt: number;
+  excused: number;
+  unexcused: number;
+  halfDaysAtt: number;
+  possible: number;
+  virtualCount: number;
+  dcProjectionStatus: 'On Track' | 'Extended Care' | 'At Risk';
+}
+
 export interface ClinicalNote {
   id: string;
   clientId: string;
