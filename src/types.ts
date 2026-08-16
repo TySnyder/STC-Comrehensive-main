@@ -25,8 +25,11 @@ export interface AttendanceEntry {
   status: 'Present' | 'Absent';
   tardy?: boolean;
   virtual?: boolean;
-  excused?: boolean;
-  note?: string;
+  atResidence?: boolean;   // NEW — at primary residence Y/N, independent of virtual/in-person
+  excused?: boolean;       // only meaningful when status === 'Absent'
+  note?: string;           // brief clinical reason (template text, e.g. "Medical appointment")
+  attendanceNotes?: string; // NEW — free-text, client-specific note for this entry
+  program?: string;        // NEW — client.program snapshot at time of entry (doc 02: "label each record")
 }
 
 export type CallResult = 'Pending' | 'Confirmed' | 'No Answer' | 'Left Voicemail' | 'Rescheduled' | 'Cancelled';
@@ -34,6 +37,11 @@ export type CallResult = 'Pending' | 'Confirmed' | 'No Answer' | 'Left Voicemail
 // Global switch every email-producing feature checks before acting: 'draft'
 // stops short and leaves a draft for review; 'send' dispatches immediately.
 export type EmailDeliveryMode = 'draft' | 'send';
+
+// Shared shape for partial attendance-entry edits, used by App/AttendanceView/ClientsView.
+export type AttendanceUpdate = Partial<
+  Pick<AttendanceEntry, 'status' | 'tardy' | 'virtual' | 'atResidence' | 'excused' | 'note' | 'attendanceNotes'>
+>;
 
 export interface IndSession {
   id: string;
@@ -84,6 +92,7 @@ export interface Client {
   admissionDate: string;
   // Est. DC date is derived (dcDateHelpers), never stored/free-text (doc 02 Q7).
   enrollmentDays?: number;       // planned treatment days; default 85, min 30
+  graduationTrack?: 30 | 85;     // TX-day track chosen at admission; default 85 (open question: where staff sets this — see report)
   scheduleDaysPerWeek?: number;  // 1–5; default 5 (SF OP-style schedule exceptions)
   dcDateNote?: string;           // optional context on the predicted date
   status: ClientStatus;

@@ -10,13 +10,19 @@ import {
   Smile,
   Clock,
   Video,
+  Home,
+  StickyNote,
+  CalendarDays,
   CheckCircle,
   Layers,
   Plus,
   Phone
 } from 'lucide-react';
-import { Client, IndSession, AttendanceEntry } from '../types';
+import { Client, IndSession, AttendanceEntry, AttendanceUpdate } from '../types';
 import { CLINICAL_AUDIT_LOG_ITEMS } from '../data';
+import { ATTENDANCE_NOTE_TEMPLATES, summarizeAttendance, AttendanceCounts } from '../utils/attendanceHelpers';
+import { GCalEvent, requestGoogleCalendarToken, fetchTodaysCalendarEvents } from '../utils/googleCalendar';
+import { extractClientNameFromIndTitle } from '../utils/calendarParser';
 
 interface AttendanceViewProps {
   clients: Client[];
@@ -26,13 +32,26 @@ interface AttendanceViewProps {
     clientId: string,
     date: string,
     block: 'A' | 'B' | undefined,
-    updates: { status?: 'Present' | 'Absent'; tardy?: boolean; virtual?: boolean; excused?: boolean }
+    updates: AttendanceUpdate
   ) => void;
   onUpdateIndSession?: (
     sessionId: string,
     updates: { attendanceStatus?: IndSession['attendanceStatus']; tardy?: boolean; virtual?: boolean }
   ) => void;
   onAddIndSession?: (session: IndSession) => void;
+}
+
+// Compact per-block roll-up: present/absent/tardy/virtual/excused counts.
+function BlockCountsStrip({ counts }: { counts: AttendanceCounts }) {
+  return (
+    <div className="flex items-center gap-3 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wide">
+      <span className="text-emerald-600">{counts.present} Present</span>
+      <span className="text-red-600">{counts.absent} Absent</span>
+      <span className="text-amber-600">{counts.tardy} Tardy</span>
+      <span className="text-blue-600">{counts.virtual} Virtual</span>
+      <span className="text-slate-500">{counts.excused} Excused</span>
+    </div>
+  );
 }
 
 function ClientAttendanceCard({
@@ -50,73 +69,112 @@ function ClientAttendanceCard({
   onSelectClient: (c: Client) => void;
   onUpdateAttendance?: AttendanceViewProps['onUpdateAttendance'];
 }) {
+  const [expanded, setExpanded] = useState(false);
   const status = entry?.status ?? 'Present';
   const isAbsent = status === 'Absent';
   const isExcused = entry?.excused ?? false;
+  const hasNote = !!(entry?.note || entry?.attendanceNotes);
 
   return (
-    <div
-      onClick={() => onSelectClient(client)}
-      className="p-3 border border-slate-100 hover:border-indigo-100 hover:bg-slate-50/50 rounded-xl flex items-center justify-between cursor-pointer transition-all"
-    >
-      <div className="flex items-center gap-3 min-w-0">
-        <span className={`w-2 h-2 rounded-full shrink-0 ${isAbsent ? 'bg-red-500' : 'bg-emerald-500'}`} />
-        <div className="min-w-0">
-          <span className="text-xs font-bold text-slate-700 block truncate">{client.name}</span>
-          <span className="text-[10px] text-slate-400 block truncate">{client.primaryTherapist}</span>
+    <div className="p-3 border border-slate-100 hover:border-indigo-100 hover:bg-slate-50/50 rounded-xl transition-all">
+      <div
+        onClick={() => onSelectClient(client)}
+        className="flex items-center justify-between cursor-pointer"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={`w-2 h-2 rounded-full shrink-0 ${isAbsent ? 'bg-red-500' : 'bg-emerald-500'}`} />
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-slate-700 block truncate">{client.name}</span>
+            <span className="text-[10px] text-slate-400 block truncate">{client.primaryTherapist}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 ml-3" onClick={e => e.stopPropagation()}>
+          <span
+            onClick={() => onUpdateAttendance?.(client.id, date, block, { status: isAbsent ? 'Present' : 'Absent' })}
+            title={`Click to mark ${isAbsent ? 'Present' : 'Absent'}`}
+            className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase transition-all active:scale-95 cursor-pointer ${
+              isAbsent
+                ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+            }`}
+          >
+            {isAbsent ? 'Absent' : 'Present'}
+          </span>
+          {isAbsent ? (
+            <div className="flex items-center bg-slate-100 rounded-full p-0.5 gap-0.5">
+              <button
+                onClick={() => onUpdateAttendance?.(client.id, date, block, { excused: false })}
+                className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase transition-all ${
+                  !isExcused ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Unexcused
+              </button>
+              <button
+                onClick={() => onUpdateAttendance?.(client.id, date, block, { excused: true })}
+                className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase transition-all ${
+                  isExcused ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                Excused
+              </button>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => onUpdateAttendance?.(client.id, date, block, { tardy: !entry?.tardy })}
+                title={entry?.tardy ? 'Remove tardy' : 'Mark tardy'}
+                className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
+              >
+                <Clock className={`w-5 h-5 transition-colors ${entry?.tardy ? 'text-amber-500' : 'text-slate-300'}`} />
+              </button>
+              <button
+                onClick={() => onUpdateAttendance?.(client.id, date, block, { virtual: !entry?.virtual })}
+                title={entry?.virtual ? 'Remove virtual' : 'Mark virtual'}
+                className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
+              >
+                <Video className={`w-5 h-5 transition-colors ${entry?.virtual ? 'text-blue-500' : 'text-slate-300'}`} />
+              </button>
+              <button
+                onClick={() => onUpdateAttendance?.(client.id, date, block, { atResidence: !entry?.atResidence })}
+                title={entry?.atResidence ? 'Remove at-residence' : 'Mark at primary residence'}
+                className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
+              >
+                <Home className={`w-5 h-5 transition-colors ${entry?.atResidence ? 'text-violet-500' : 'text-slate-300'}`} />
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setExpanded(v => !v)}
+            title="Note / Attendance Notes"
+            className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
+          >
+            <StickyNote className={`w-4 h-4 transition-colors ${hasNote ? 'text-indigo-500' : 'text-slate-300'}`} />
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0 ml-3" onClick={e => e.stopPropagation()}>
-        <span
-          onClick={() => onUpdateAttendance?.(client.id, date, block, { status: isAbsent ? 'Present' : 'Absent' })}
-          title={`Click to mark ${isAbsent ? 'Present' : 'Absent'}`}
-          className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase transition-all active:scale-95 cursor-pointer ${
-            isAbsent
-              ? 'bg-red-50 text-red-700 hover:bg-red-100'
-              : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-          }`}
-        >
-          {isAbsent ? 'Absent' : 'Present'}
-        </span>
-        {isAbsent ? (
-          <div className="flex items-center bg-slate-100 rounded-full p-0.5 gap-0.5">
-            <button
-              onClick={() => onUpdateAttendance?.(client.id, date, block, { excused: false })}
-              className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase transition-all ${
-                !isExcused ? 'bg-red-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Unexcused
-            </button>
-            <button
-              onClick={() => onUpdateAttendance?.(client.id, date, block, { excused: true })}
-              className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded-full uppercase transition-all ${
-                isExcused ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Excused
-            </button>
-          </div>
-        ) : (
-          <>
-            <button
-              onClick={() => onUpdateAttendance?.(client.id, date, block, { tardy: !entry?.tardy })}
-              title={entry?.tardy ? 'Remove tardy' : 'Mark tardy'}
-              className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
-            >
-              <Clock className={`w-5 h-5 transition-colors ${entry?.tardy ? 'text-amber-500' : 'text-slate-300'}`} />
-            </button>
-            <button
-              onClick={() => onUpdateAttendance?.(client.id, date, block, { virtual: !entry?.virtual })}
-              title={entry?.virtual ? 'Remove virtual' : 'Mark virtual'}
-              className="cursor-pointer hover:scale-125 active:scale-100 transition-all"
-            >
-              <Video className={`w-5 h-5 transition-colors ${entry?.virtual ? 'text-blue-500' : 'text-slate-300'}`} />
-            </button>
-          </>
-        )}
-      </div>
+      {expanded && (
+        <div className="mt-2.5 pt-2.5 border-t border-slate-100 space-y-2" onClick={e => e.stopPropagation()}>
+          <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wide block">
+            Program at entry: {entry?.program ?? client.program}
+          </span>
+          <input
+            list="attendance-note-templates"
+            value={entry?.note ?? ''}
+            onChange={e => onUpdateAttendance?.(client.id, date, block, { note: e.target.value })}
+            placeholder="Note (clinical reason — start typing for templates)"
+            className="w-full text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-indigo-500 bg-white"
+          />
+          <input
+            value={entry?.attendanceNotes ?? ''}
+            onChange={e => onUpdateAttendance?.(client.id, date, block, { attendanceNotes: e.target.value })}
+            placeholder="Attendance notes (client-specific, free text)"
+            className="w-full text-[11px] border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-indigo-500 bg-white"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -198,12 +256,58 @@ export default function AttendanceView({
   const showEop  = selectedProgramFilter === 'All' || selectedProgramFilter === 'EOP';
   const showInd  = selectedProgramFilter === 'All' || selectedProgramFilter === 'IND';
 
+  // Daily per-block counts — computed off the full roster (not the status
+  // filter) so the strip always reflects the whole block, not the filtered view.
+  const diopCounts = summarizeAttendance(diop.map(c => getEntry(c, 'A')));
+  const dopCounts = summarizeAttendance([...dop.map(c => getEntry(c, undefined)), ...diop.map(c => getEntry(c, 'B'))]);
+  const eiopCounts = summarizeAttendance(eiop.map(c => getEntry(c, 'A')));
+  const eopCounts = summarizeAttendance([...eop.map(c => getEntry(c, undefined)), ...eiop.map(c => getEntry(c, 'B'))]);
+
   const totalCensus = 142;
   const presentCount = 128;
   const absentCount = 14;
 
+  // ── Google Calendar-sourced IND sessions ──────────────────────────────────
+  const [gcalStatus, setGcalStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [gcalEvents, setGcalEvents] = useState<GCalEvent[]>([]);
+  const [gcalError, setGcalError] = useState('');
+  const [addedEventIds, setAddedEventIds] = useState<Set<string>>(new Set());
+
+  const connectGoogleCalendar = async () => {
+    setGcalStatus('connecting');
+    setGcalError('');
+    try {
+      const token = await requestGoogleCalendarToken();
+      const events = await fetchTodaysCalendarEvents(token);
+      setGcalEvents(events);
+      setGcalStatus('connected');
+    } catch (err) {
+      setGcalError(err instanceof Error ? err.message : 'Could not connect to Google Calendar.');
+      setGcalStatus('error');
+    }
+  };
+
+  const addEventToRoster = (event: GCalEvent) => {
+    onAddIndSession?.({
+      id: `ind-gcal-${event.id}`,
+      clientId: '',
+      clientName: extractClientNameFromIndTitle(event.title) || event.title,
+      phone: '—',
+      therapist: '',
+      time: event.start,
+      location: 'Google Calendar',
+      date: selectedDateFilter,
+      attendanceStatus: 'Unconfirmed',
+      isManual: false
+    });
+    setAddedEventIds(prev => new Set(prev).add(event.id));
+  };
+
   return (
     <div id="attendance-census-portal" className="space-y-6">
+      <datalist id="attendance-note-templates">
+        {ATTENDANCE_NOTE_TEMPLATES.map(t => <option key={t} value={t} />)}
+      </datalist>
 
       {/* Census metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -334,9 +438,12 @@ export default function AttendanceView({
             {/* DIOP Block A — 11:45 AM */}
             {showDiop && (
               <section className="space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded uppercase tracking-wider">11:45 AM – 1:30 PM</span>
-                  <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">DIOP — Day Intensive Outpatient · Block A</h4>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded uppercase tracking-wider">11:45 AM – 1:30 PM</span>
+                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">DIOP — Day Intensive Outpatient · Block A</h4>
+                  </div>
+                  <BlockCountsStrip counts={diopCounts} />
                 </div>
                 {filteredDiop.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -353,9 +460,12 @@ export default function AttendanceView({
             {/* DOP Block B — 1:45 PM */}
             {showDop && (
               <section className="space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <span className="text-[10px] font-mono font-bold bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded uppercase tracking-wider">1:45 PM – 3:00 PM</span>
-                  <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">DOP — Day Outpatient + DIOP Block B</h4>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded uppercase tracking-wider">1:45 PM – 3:00 PM</span>
+                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">DOP — Day Outpatient + DIOP Block B</h4>
+                  </div>
+                  <BlockCountsStrip counts={dopCounts} />
                 </div>
                 {(filteredDopClients.length + filteredDiopInDop.length) > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -375,9 +485,12 @@ export default function AttendanceView({
             {/* EIOP Block A — 3:45 PM */}
             {showEiop && (
               <section className="space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <span className="text-[10px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded uppercase tracking-wider">3:45 PM – 5:30 PM</span>
-                  <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">EIOP — Evening Intensive Outpatient · Block A</h4>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded uppercase tracking-wider">3:45 PM – 5:30 PM</span>
+                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">EIOP — Evening Intensive Outpatient · Block A</h4>
+                  </div>
+                  <BlockCountsStrip counts={eiopCounts} />
                 </div>
                 {filteredEiop.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -394,9 +507,12 @@ export default function AttendanceView({
             {/* EOP Block B — 5:45 PM */}
             {showEop && (
               <section className="space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                  <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded uppercase tracking-wider">5:45 PM – 7:00 PM</span>
-                  <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">EOP — Evening Outpatient + EIOP Block B</h4>
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded uppercase tracking-wider">5:45 PM – 7:00 PM</span>
+                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">EOP — Evening Outpatient + EIOP Block B</h4>
+                  </div>
+                  <BlockCountsStrip counts={eopCounts} />
                 </div>
                 {(filteredEopClients.length + filteredEiopInEop.length) > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -421,13 +537,57 @@ export default function AttendanceView({
                     <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded uppercase tracking-wider">Varies</span>
                     <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide font-sans">IND — Individual Therapy Sessions</h4>
                   </div>
-                  <button
-                    onClick={() => setShowAddInd(v => !v)}
-                    className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors"
-                  >
-                    <Plus className="w-3 h-3" /> Add Session
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={connectGoogleCalendar}
+                      disabled={gcalStatus === 'connecting'}
+                      className="flex items-center gap-1 text-[10px] font-bold text-slate-600 hover:text-slate-800 border border-slate-200 bg-white px-2.5 py-1 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      <CalendarDays className="w-3 h-3" />
+                      {gcalStatus === 'connected' ? 'Refresh Calendar' : gcalStatus === 'connecting' ? 'Connecting…' : 'Connect Calendar'}
+                    </button>
+                    <button
+                      onClick={() => setShowAddInd(v => !v)}
+                      className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3 h-3" /> Add Session
+                    </button>
+                  </div>
                 </div>
+
+                {gcalError && <p className="text-[11px] text-red-600 font-sans">{gcalError}</p>}
+
+                {gcalStatus === 'connected' && (
+                  <div className="border border-slate-100 rounded-xl overflow-hidden">
+                    <div className="bg-slate-50 border-b border-slate-100 px-3 py-2 text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+                      Today's Calendar Events — add any IND session to the roster
+                    </div>
+                    {gcalEvents.length > 0 ? (
+                      <div className="divide-y divide-slate-100">
+                        {gcalEvents.map(ev => {
+                          const added = addedEventIds.has(ev.id);
+                          return (
+                            <div key={ev.id} className="flex items-center justify-between px-3 py-2 gap-3">
+                              <div className="min-w-0">
+                                <span className="text-xs font-bold text-slate-700 block truncate">{ev.title}</span>
+                                <span className="text-[10px] text-slate-400 font-mono">{ev.start}{ev.end ? ` – ${ev.end}` : ''}</span>
+                              </div>
+                              <button
+                                onClick={() => addEventToRoster(ev)}
+                                disabled={added}
+                                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 bg-indigo-50 px-2.5 py-1 rounded-lg transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                {added ? 'Added' : 'Add to Roster'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 italic px-3 py-2">No events on the connected calendar today.</p>
+                    )}
+                  </div>
+                )}
 
                 {showAddInd && (
                   <form onSubmit={handleSubmitIndSession} className="p-3 border border-indigo-100 bg-indigo-50/40 rounded-xl grid grid-cols-2 gap-2">
