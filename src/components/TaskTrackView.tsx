@@ -18,6 +18,7 @@ import {
 import { Client, IndSession, UaAssignment, CallResult, EmailDeliveryMode } from '../types';
 import { GCalEvent, requestGoogleCalendarToken, fetchTodaysCalendarEvents } from '../utils/googleCalendar';
 import { getTodaysTimeline } from '../utils/timelineData';
+import { sendDailyReminders } from '../utils/dailyRemindersApi';
 
 // Seed data is dated 2026-06-15 (see data.ts); Task Track reads "today" against
 // that same reference so the framework demonstrates populated content out of the box.
@@ -127,11 +128,19 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
 
   const activeUaTab = uaTabs.find(t => t.id === activeTabId);
 
-  const handleSendDailyReminders = () => {
-    if (emailDeliveryMode === 'draft') {
-      // TODO: wire draft creation (e.g. Gmail API drafts.create) for the reminder summary email.
-    } else {
-      // TODO: wire immediate send (e.g. Gmail API messages.send) for the reminder summary email.
+  const [reminderStatus, setReminderStatus] = useState<'idle' | 'sending' | 'sent' | 'drafted' | 'error'>('idle');
+
+  // Sends via the stc-backend Apps Script (GmailApp), not the client-side
+  // dispatchEmail choke point — the whole lookup (recipients, therapist
+  // calendars, client contact sheet) already runs server-side there. Mode is
+  // still passed through so "draft" produces a Gmail draft instead of a send.
+  const handleSendDailyReminders = async () => {
+    setReminderStatus('sending');
+    try {
+      const result = await sendDailyReminders(emailDeliveryMode);
+      setReminderStatus(result.sent ? 'sent' : 'drafted');
+    } catch {
+      setReminderStatus('error');
     }
   };
 
@@ -230,9 +239,11 @@ export default function TaskTrackView({ clients, indSessions, onUpdateIndSession
               </div>
               <button
                 onClick={handleSendDailyReminders}
-                className="mb-2 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                disabled={reminderStatus === 'sending'}
+                className="mb-2 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                <Mail className="w-3.5 h-3.5" /> Send Daily Reminders
+                <Mail className="w-3.5 h-3.5" />
+                {reminderStatus === 'sending' ? 'Sending…' : reminderStatus === 'sent' ? 'Sent!' : reminderStatus === 'drafted' ? 'Draft created' : reminderStatus === 'error' ? 'Failed — retry' : 'Send Daily Reminders'}
               </button>
             </div>
 

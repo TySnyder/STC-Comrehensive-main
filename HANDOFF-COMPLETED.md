@@ -4,6 +4,34 @@
 
 
 ---
+<!-- archived from HANDOFF.md on 2026-08-15 (walking skeleton) -->
+
+**Google Sheets + Apps Script "walking skeleton" — fully proven end-to-end.**
+New Google Sheet + new Apps Script Web App (`/Users/ts/github-sites/stc-backend`,
+own git repo, not a fork of `stc_dashboard_v4`): Sheet
+`STC Operations Portal Backend` (id `12vh7kgqbymaxIGMzFnipKnsD2Y-IRJ6MuDRqZgFZyvs`),
+Apps Script (id `1R1O2PEBUCrTLlJZU0C0d0-zleEgONNmoHofay9SEZo_-ShsAxoCIb9lp`),
+deployed Web App (`AKfycbwEiBKCQOriMR9zYQKbfIgX8TwfUW760AStNuRWVaiktdrwfubgb20lYm0paXMFzCGX`).
+`Code.js`: UA-assignments schema mirroring `UaAssignment` (types.ts), `doGet`/`doPost`.
+React side: `src/utils/uaAssignmentsApi.ts` (`listUaAssignments`/`upsertUaAssignment`),
+reading `VITE_UA_API_URL`; dev-only proof-of-life `useEffect` in `App.tsx` confirmed
+in a real browser (no CORS error). **Root cause of a flaky 200/403 CORS saga:** the
+Apps Script's linked GCP project ("STC Main Dashboard", `672367186661` — not Apps
+Script's auto-created default project) had OAuth audience **User type: Internal**
+(Workspace-org-only), blocking anonymous/external callers regardless of the Web
+App's own "Anyone, even anonymous" setting. Fixed via Cloud Console → Auth Platform
+→ Audience → "Make external" (now External + In production). Confirmed brand-new
+project, not shared with other production work, so isolation risk is low today —
+but it's one GCP project per Apps Script deployment, not fully isolated, worth
+remembering if more lands there.
+**Not yet done:** wire `uaAssignments` state in `App.tsx` off `useLocalStorageState`
+onto the real API; decide the auth model before real client data flows through
+(still anonymous — now more urgent, see current HANDOFF.md's Daily Reminders
+section, which already sends real email off this same anonymous deployment);
+delete the `test-1` test row from the `UaAssignments` sheet; remove/gate the
+dev-only proof-of-life effect.
+
+---
 <!-- archived from HANDOFF.md on 2026-08-15 -->
 
 - Clean-code refactor + all spreadsheet-mapping build targets: **committed** (`8f0d116`, `402456e`). Handoff system migrated to root director/archive format (`d85612c`).

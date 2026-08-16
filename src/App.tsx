@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import DashboardView from './components/DashboardView';
@@ -22,6 +22,7 @@ import DischargeClientModal from './components/DischargeClientModal';
 import { applyDischarge, reverseDischarge, updateEpisode, readmitClient, DischargeInput } from './utils/episodeHelpers';
 import { useLocalStorageState } from './utils/useLocalStorageState';
 import { dispatchEmail } from './utils/gmail';
+import { listUaAssignments } from './utils/uaAssignmentsApi';
 
 import {
   INITIAL_CLIENTS,
@@ -53,6 +54,15 @@ export default function App() {
   const [billingNotes, setBillingNotes] = useState<InsuranceBillingNote[]>(INITIAL_INSURANCE_BILLING_NOTES);
   const [scheduleSlots, setScheduleSlots] = useLocalStorageState<GridSlot[]>('stc-schedule-slots', INITIAL_SLOTS);
   const [uaAssignments, setUaAssignments] = useLocalStorageState<UaAssignment[]>('stc-ua-assignments', []);
+
+  // Proof-of-life: stc-backend walking skeleton (see HANDOFF.md). Not wired
+  // into uaAssignments state yet — just confirms the browser can reach the
+  // Apps Script Web App without a CORS failure.
+  useEffect(() => {
+    listUaAssignments()
+      .then((data) => console.log('[stc-backend proof-of-life] UA assignments:', data))
+      .catch((err) => console.error('[stc-backend proof-of-life] failed:', err));
+  }, []);
   const [timeOffRequests, setTimeOffRequests] = useLocalStorageState<TimeOffRequest[]>('stc-time-off', []);
   const [emailDeliveryMode, setEmailDeliveryModeRaw] = useLocalStorageState<EmailDeliveryMode>('stc-email-delivery-mode', 'draft');
   // Settings' master switch: while on, every email sends and STAYS in send

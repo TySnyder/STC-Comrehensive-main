@@ -13,42 +13,59 @@ Full detail of everything through today's session (Task Track, Google Calendar O
 Client Forms picker, live timeline data, email delivery mode + master-switch safety
 fix) is in `HANDOFF-COMPLETED.md` — search with `rg`, don't read wholesale.
 
-## Next steps — Google Sheets + Apps Script "walking skeleton" (IN PROGRESS)
+## stc-backend (Apps Script Web App) — status
 
-Scoped with the user, now starting. Goal: prove the whole path — new Sheet, new
-Apps Script Web App, real HTTP call from this React app, round-trip data — with the
-**smallest possible slice** before expanding to the full migration.
+Walking skeleton (UA assignments doGet/doPost) is **done, fully proven end-to-end**
+— see `HANDOFF-COMPLETED.md` for the full story (includes a real root-cause fix:
+the linked GCP project's OAuth audience was Internal, blocking anonymous callers).
+Deployment: `AKfycbwEiBKCQOriMR9zYQKbfIgX8TwfUW760AStNuRWVaiktdrwfubgb20lYm0paXMFzCGX`,
+still "Anyone, even anonymous" — auth model still undecided, see below.
 
-**Decisions already made (don't re-litigate):**
+## Next steps — Daily Reminders wiring (IN PROGRESS)
 
-- New Apps Script Web App = new project, NOT extending `stc_dashboard_v4`.
-- Backs onto a **brand-new Google Sheet**, not any live clinic operational sheet.
-- First slice = **UA assignments** (the one already flagged `TODO(PHI)` in this app's code).
-- Eventually full migration (clients, staff, census, attendance, everything) — but not this pass.
-- `clasp` is installed and logged in on this machine, ready to use.
+`TaskTrackView.tsx`'s "Daily Reminders" tab already existed (client list + call-result
+tracking) but "Send Daily Reminders" was a TODO stub. Real meaning, per the user:
+staff call a client today about their IND appointment tomorrow.
 
-**Defaults I'm proceeding with (flag if wrong, not blocking on confirmation):**
+**Real resources now wired (see `stc-backend/Code.js`, pushed + redeployed @3):**
 
-- New project lives at `/Users/ts/github-sites/stc-backend`, sibling to this repo and `stc_dashboard_v4`.
-- `clasp create --type sheets` to get a bound Sheet + Script together in one step.
-- Web App deployed with "Anyone, even anonymous" access for this skeleton pass only —
-  **not safe once real client data flows through it.** Auth model is a real decision
-  to make before this graduates past skeleton/placeholder data.
-- Skeleton scope: `doGet` returns UA assignments as JSON, `doPost` upserts one. React
-  side gets a small proof-of-life call (not a full replacement of `useLocalStorageState`
-  yet — that's the next increment after the skeleton proves out).
+- **Settings tab** in the `stc-backend` bound Sheet (Sheet1 / UaAssignments / Settings)
+  — user-maintained, label rows followed by data rows: `Therapists` (name + `<email>`,
+  email = that therapist's Calendar ID), `Intake`, `Daily Reminders` (row below the
+  label = comma-separated `Name <email>` recipient list). Read via `readSettingsBlock_()`.
+- **Therapist calendars**, read via `CalendarApp.getCalendarById(therapistEmail)` —
+  works because the script executes as the developer, who has view access.
+- **Client contact sheet** (separate spreadsheet, id `1cfu4IwQVt4t09sNyhy7h9uzGIR-85x051u7gbXzdnoo`,
+  real PHI — do not paste its contents into chat or docs) — multiple tabs by
+  program, grouped by "Level of Care" section headers, columns: Name, Admit Date,
+  Cell Phone #, Home Phone #, Email, Emergency Contact. `findClientPhone_()` scans
+  all tabs, matches client name (handles suffixes like "(2)").
+- New endpoints: `doGet?action=dailyReminderRecipients`, `doGet?action=tomorrowsAppointments`
+  (both confirmed returning real data), `doPost {action: 'sendDailyReminders'}`
+  (builds the summary + calls `GmailApp.sendEmail` — **not yet triggered/tested**,
+  deliberately left for the user to fire since it emails 8 real staff addresses).
+- React: `src/utils/dailyRemindersApi.ts` (`sendDailyReminders()`), wired into the
+  "Send Daily Reminders" button in `TaskTrackView.tsx` with sending/sent/error status.
+  `tsc --noEmit` clean.
 
-**Progress this pass:** (update as steps complete)
+**Open / not done:**
 
-- [x] `stc-backend` project scaffolded via clasp — DONE, real resources now exist:
-  - Local dir: `/Users/ts/github-sites/stc-backend` (own git repo, 2 commits, not yet pushed anywhere remote — no GitHub remote configured, purely local).
-  - Google Sheet: `STC Operations Portal Backend` — <https://drive.google.com/open?id=12vh7kgqbymaxIGMzFnipKnsD2Y-IRJ6MuDRqZgFZyvs>
-  - Apps Script project (bound to that Sheet): <https://script.google.com/d/1R1O2PEBUCrTLlJZU0C0d0-zleEgONNmoHofay9SEZo_-ShsAxoCIb9lp/edit>
-  - `.clasp.json` (committed, tracks both IDs above) is the only file besides `appsscript.json` — **no `Code.js` written yet, nothing pushed via `clasp push`, no Web App deployment exists yet.**
-- [ ] **NEXT CONCRETE STEP:** write `Code.js` in `/Users/ts/github-sites/stc-backend` with a UA-assignments Sheet schema (mirror the `UaAssignment` type in this repo's `src/types.ts`: id, clientId, weekStart, assignedDate, status, completedDate, completedBy, billed) and `doGet` (list as JSON) / `doPost` (upsert one, matched by id).
-- [ ] `clasp push` from `/Users/ts/github-sites/stc-backend`, then deploy as a Web App (`clasp deploy` or via the script editor) — per the defaults above, "Anyone, even anonymous" for this skeleton pass, clearly flagged as not safe once real data is involved.
-- [ ] React util (`fetch` calls) + one proof-of-life wiring point — likely `src/utils/uaAssignmentsApi.ts` in **this** repo (`STC-Comrehensive-main`), pointed at the deployed Web App URL via a new `.env` var.
-- [ ] Confirmed working end-to-end from the actual browser (not just curl) — same verification bar as Google Calendar/Gmail: Playwright can check the request shape, but real data round-tripping needs a manual check.
+- [ ] **User to test the actual send** — click "Send Daily Reminders" in the app
+  (`localhost:3004`, Task Track tab) and confirm the email lands correctly.
+- [ ] **Security gap, same as the skeleton's:** `sendDailyReminders` runs on the
+  same anonymous, unauthenticated deployment — anyone with the URL can trigger a
+  real email send right now. Auth model decision is no longer hypothetical.
+- [ ] The visible "Daily Reminders" table in `TaskTrackView.tsx` still shows mock
+  `indSessions` data filtered by a hardcoded `TODAY` (not real Calendar data) —
+  the send button now uses real data server-side, but the on-screen list doesn't
+  yet. Reconciling those (or replacing the table with `tomorrowsAppointments`) is
+  unstarted.
+- [x] `emailDeliveryMode` now passed through to the backend (`mode` in the POST
+  body); `Code.js` only calls `GmailApp.sendEmail` when `mode === 'send'`, else
+  `GmailApp.createDraft` — matches the default-safe behavior of the client-side
+  `dispatchEmail` choke point, just enforced server-side since this path doesn't
+  go through it. Pushed + redeployed (@4). Default app state is `draft`, so the
+  button is safe to click as-is.
 
 ## Open items (older, still unresolved)
 
