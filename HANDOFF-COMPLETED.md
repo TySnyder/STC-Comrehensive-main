@@ -3,7 +3,29 @@
 > Completed handoffs, moved verbatim from the director. Never read wholesale — search with `rg`.
 
 ---
-<!-- archived from HANDOFF.md on 2026-08-16 (Census Totals fix, crash fix, OAuth origins fix) -->
+<!-- archived from HANDOFF.md + HANDOFF-1.md on 2026-08-16 (real Auth + role-based access) -->
+
+**Real Google Sign-In + 5-role access deployed (2a8894c).** Replaced demo email/password auth
+(`DEMO_ACCOUNTS`) with domain-restricted Google Sign-In (`treatmentconsultants.net`) via
+`utils/auth.ts` (`signInWithGoogle`/`signOutUser`) and `firebaseClient.ts`'s new `auth` export.
+`AuthContext` now wraps `onAuthStateChanged`, exposing only raw identity (`{id,name,email}`) — no
+role, since role resolution needs `staffList` which isn't available until Firestore data loads.
+`App.tsx` split: outer `App()` is the auth gate (loading spinner → `LoginView` → `Portal`), inner
+`Portal` holds everything that used to be in `App()`, with `effectiveUser`/role resolved by matching
+signed-in email against `Staff.email` → `Staff.appRole` (`?? 'intern'`, least-privilege default,
+never guessed toward more access). This ordering matters: Firestore rules now require
+`request.auth != null`, so the data hooks (`useFirestoreState`) must not mount until after login, or
+their `onSnapshot` listeners subscribe pre-auth, get `permission-denied`, and never auto-retry.
+`Sidebar.tsx` updated to the 5 roles (Intern/Admin/Intake/Therapist/Master, replacing
+admin/therapist/intake/supervisor) with `ROLE_NAV_IDS` gating nav item visibility per role —
+**provisional first pass, not confirmed with the user**, flagged for review. `firestore.rules`
+locked down to `request.auth != null && email matches @treatmentconsultants.net`, deployed via
+`firebase deploy --only firestore:rules --project stc-operations-portal`. Gate green (tsc, 80 tests,
+build) before deploy; pushed to `origin/master` and `vercel deploy --prod` (user approved both via
+AskUserQuestion). **Not yet verified by a human** — real Google OAuth popup can't be tested by an
+agent. **No role-assignment UI exists** — `Staff.appRole` must be set by hand in the Firebase console
+(Firestore → `staff` collection); first real login defaults to `'intern'`, so whoever signs in first
+must manually promote their own Staff record to `'master'` to unlock full access.
 
 **Attendance Totals fine-tune persisted via override record (fe4a443).** The Totals sub-tab's edit
 modal changes computed aggregate fields (fullDaysAtt, excused, etc.) that don't map to any single

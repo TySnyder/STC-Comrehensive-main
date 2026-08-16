@@ -8,17 +8,29 @@
 
 ## Active phase — READ THIS FIRST
 
-**`HANDOFF-1.md` — Real Auth + Role-Based Access, IN PROGRESS, mid-implementation.** Only
-`src/types.ts` is changed and uncommitted; this alone currently fails `tsc --noEmit` (2 known,
-expected errors in files about to be replaced). Last commit `1609b54` is green and is what's live
-on `origin/master`/Vercel. Do not assume the working tree is green — check `git status` and `tsc`
-before touching anything. `HANDOFF-1.md` has the full decided scope, exact remaining steps in order,
-and a pending small side-request (Theme Week banner on Program Schedule Builder) that must not get
-lost. Read it fully before continuing this work.
+**Real Google Sign-In + 5-role access is DEPLOYED (commit `2a8894c`), but NOT yet verified by a
+human.** Firestore rules now require auth (`firebase deploy --only firestore:rules` already ran),
+code is pushed to `origin/master` and live via `vercel deploy --prod`. Full implementation detail is
+in `HANDOFF-COMPLETED.md` (search `2a8894c` or "Real Google Sign-In"). **Next steps, in order:**
+
+1. **Ask the user to click through the actual Google OAuth popup** at
+   `https://stc-comprehensive.vercel.app` with a `@treatmentconsultants.net` account — an agent
+   cannot test this. First real login defaults to role `'intern'`; the signing-in user must then
+   manually set their own `Staff.appRole` to `'master'` in the Firebase console (Firestore → `staff`
+   collection) to unlock full access. Call this out explicitly so they don't think they're locked out.
+2. Confirm/correct the **provisional nav-visibility-per-role** first pass (`ROLE_NAV_IDS` in
+   `Sidebar.tsx`) — not yet confirmed with the user, likely to need adjustment.
+3. **Theme Week banner (separate small pending request, not started):** user asked for a compact
+   "THEME WEEK 6 OF 17 · CURRENT — Boundaries" banner (progress-dot strip + Details/Set theme
+   buttons) at the top of `ScheduleView.tsx` (Program Schedule Builder page). The underlying state
+   already exists there (`displayedTheme`, `displayedThemeWeek`, `THEME_CYCLE_LENGTH`,
+   `themeDetailOpen` — used by the existing Theme Detail modal). Check whether a banner like this
+   already exists elsewhere in the app (e.g. Dashboard) before building fresh — the screenshot's
+   styling suggested it might just need relocating.
 
 ## Current state (everything before the active phase)
 
-`origin/master` and Vercel production are current as of `1609b54`. Full detail of this session
+`origin/master` and Vercel production are current as of `2a8894c`. Full detail of prior sessions
 (Vercel deploy, real-PHI stopgap, Firebase provisioning, 4-agent sprint, Virtual Requests, browser
 test pass, Census persistence + crash fixes, DIOP/DOP naming, modal backdrop-close, the Firestore
 migration, the Attendance Totals override fix, the Calendar OAuth origin fix) is in
@@ -27,13 +39,11 @@ migration, the Attendance Totals override fix, the Calendar OAuth origin fix) is
 **The app's shared data is backed by real-time Firestore** — `clients`, `staff`, `risks`,
 `clinicalNotes`, `indSessions`, `censusEntries`, `billingNotes`, `scheduleSlots`, `uaAssignments`,
 `timeOffRequests`, `callLog`, `virtualRequests`, `attendanceOverrides`. Still demo/fake data.
-Firestore rules are **open** (`allow read, write: if true`) — locking them down is literally what
-the active phase (`HANDOFF-1.md`) is doing.
+Firestore rules now require `request.auth != null` + `@treatmentconsultants.net` email match.
 
-**No real PHI policy still stands:** demo data only until real Firebase Auth (in progress) + a
-signed BAA exist. Do not wire any view to `stc-backend`'s real client-contact endpoints in a way
-reachable from a public deployment, and do not put real client data into Firestore while this phase
-is incomplete.
+**No real PHI policy still stands:** demo data only until a signed BAA exists (real Auth is now in
+place). Do not wire any view to `stc-backend`'s real client-contact endpoints in a way reachable from
+a public deployment, and do not put real client data into Firestore yet.
 
 ## stc-backend (Apps Script Web App) — status
 
