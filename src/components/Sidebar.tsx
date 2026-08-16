@@ -51,23 +51,45 @@ const ROLE_NAV_IDS: Record<AuthUser['role'], string[] | null> = {
 };
 
 export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLogout }: SidebarProps) {
-  const allNavItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'tasktrack', label: 'Task Track', icon: ListChecks },
-    { id: 'clients', label: 'Clients', icon: Users },
-    { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
-    { id: 'census', label: 'Weekly Census', icon: CalendarDays },
-    { id: 'ua', label: 'UA Tracking', icon: FlaskConical },
-    { id: 'calltracking', label: 'Call Tracking', icon: Phone },
-    { id: 'virtualrequests', label: 'Virtual Requests', icon: Video },
-    { id: 'schedule', label: 'Program Schedule', icon: Calendar },
-    { id: 'discharge', label: 'Discharge Planning', icon: TrendingUp },
-    { id: 'reports', label: 'Clinical Analytics', icon: FileSpreadsheet },
-    { id: 'staff', label: 'Staff Management', icon: Activity },
-    { id: 'settings', label: 'Settings & Preferences', icon: Settings },
+  const navSections = [
+    {
+      section: 'Daily Ops',
+      items: [
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'tasktrack', label: 'Task Track', icon: ListChecks },
+        { id: 'attendance', label: 'Attendance', icon: ClipboardCheck },
+        { id: 'calltracking', label: 'Call Tracking', icon: Phone },
+        { id: 'ua', label: 'UA Tracking', icon: FlaskConical },
+      ],
+    },
+    {
+      section: 'Clients',
+      items: [
+        { id: 'clients', label: 'Clients', icon: Users },
+        { id: 'discharge', label: 'Discharge Planning', icon: TrendingUp },
+        { id: 'virtualrequests', label: 'Virtual Requests', icon: Video },
+      ],
+    },
+    {
+      section: 'Programs',
+      items: [
+        { id: 'schedule', label: 'Program Schedule', icon: Calendar },
+        { id: 'census', label: 'Weekly Census', icon: CalendarDays },
+        { id: 'staff', label: 'Staff Management', icon: Activity },
+      ],
+    },
+    {
+      section: 'Admin',
+      items: [
+        { id: 'reports', label: 'Clinical Analytics', icon: FileSpreadsheet },
+        { id: 'settings', label: 'Settings & Preferences', icon: Settings },
+      ],
+    },
   ];
   const allowedIds = ROLE_NAV_IDS[user.role];
-  const navItems = allowedIds ? allNavItems.filter(item => allowedIds.includes(item.id)) : allNavItems;
+  const navSectionsForRole = navSections
+    .map(s => ({ ...s, items: allowedIds ? s.items.filter(item => allowedIds.includes(item.id)) : s.items }))
+    .filter(s => s.items.length > 0);
 
   return (
     <aside id="portal-sidebar" className="w-68 bg-white border-r border-[#e2e8f0] flex flex-col h-screen sticky top-0 shrink-0">
@@ -83,29 +105,36 @@ export default function Sidebar({ currentTab, setTab, openNoteModal, user, onLog
 
       {/* Navigation Items */}
       <nav id="sidebar-nav" className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentTab === item.id;
-          return (
-            <button
-              key={item.id}
-              id={`sidebar-link-${item.id}`}
-              onClick={() => setTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group text-left ${
-                isActive
-                  ? 'bg-indigo-50 text-indigo-600 font-semibold border-l-2 border-indigo-600 pl-2.5'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-              }`}
-            >
-              <Icon 
-                className={`w-4 h-4 transition-colors duration-150 ${
-                  isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
-                }`} 
-              />
-              <span className="truncate">{item.label}</span>
-            </button>
-          );
-        })}
+        {navSectionsForRole.map((group, idx) => (
+          <div key={group.section} className={idx > 0 ? 'pt-4' : ''}>
+            <p className="px-3 pb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              {group.section}
+            </p>
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  id={`sidebar-link-${item.id}`}
+                  onClick={() => setTab(item.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group text-left ${
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-600 font-semibold border-l-2 border-indigo-600 pl-2.5'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                  }`}
+                >
+                  <Icon
+                    className={`w-4 h-4 transition-colors duration-150 ${
+                      isActive ? 'text-indigo-600' : 'text-slate-400 group-hover:text-slate-600'
+                    }`}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* Bottom Fast Action Prompt / Note Creator */}
