@@ -3,6 +3,44 @@
 > Completed handoffs, moved verbatim from the director. Never read wholesale — search with `rg`.
 
 ---
+<!-- archived from HANDOFF.md on 2026-08-16 (Census Totals fix, crash fix, OAuth origins fix) -->
+
+**Attendance Totals fine-tune persisted via override record (fe4a443).** The Totals sub-tab's edit
+modal changes computed aggregate fields (fullDaysAtt, excused, etc.) that don't map to any single
+underlying record — added `AttendanceTotalOverride` (per-client, Firestore-backed via
+`attendanceOverrides` collection), merged on top of `adaptClientWithEntries`'s computed totals in
+`CensusView.tsx`. Roster sub-tab's handler left local-only — no button reaches it in `SUB_TABS`,
+still dead UI, wiring its persistence would have no visible effect.
+
+**CRITICAL — Firestore crash on any optional field, fixed (1609b54).** User reported the whole page
+going white when clicking a Weekly Census block. Root cause: Firestore's `WriteBatch.set()` throws
+*synchronously* on `undefined` field values (e.g. `CensusEntry.specialCode` when unset) — every
+entity type has optional fields written as explicit `undefined` properties (same as always, since
+`JSON.stringify` used to silently drop them). The throw happened inside `useFirestoreState`'s
+`setValue(prev => {...})` functional updater, which propagated as a React render-phase error with no
+Error Boundary in the tree — React 18's default behavior is to unmount the whole tree, hence "blank
+page." Fixed two ways: (1) `firebaseClient.ts` now uses `initializeFirestore(app, {
+ignoreUndefinedProperties: true })` instead of `getFirestore(app)` — the systemic fix, matches the
+JSON.stringify behavior everything was written against. (2) `useFirestoreState.ts` restructured so
+Firestore writes happen as a side effect *after* the state update, never inside the updater itself,
+wrapped in try/catch + `.catch()` so a future write failure logs instead of crashing. Verified via
+ego-browser: reproduced the exact crash scenario (click an empty census cell, triggering the
+DIOP→DOP auto-fill path that includes `specialCode: undefined`) on production before the fix,
+confirmed no crash + correct persistence across refresh after.
+
+**Google Calendar OAuth `origin_mismatch` — fixed via Console (no code change).** Traced the actual
+GCP project: the client ID's numeric prefix (`600351493590`) resolves to project `daily-workspace-
+487218` ("Daily Workspace" display name) — **not** "stc-main-dashboard" as HANDOFF previously
+guessed from browser tab history; that guess was wrong, corrected here. Found the exact client
+("STC Dashboard", created Aug 15 2026) under that project's Credentials, confirmed via screenshot it
+only had `localhost:3000` and `localhost:3004` registered — nothing else. Added
+`https://stc-comprehensive.vercel.app` and `localhost:3001`–`3003` as Authorized JavaScript origins,
+saved (confirmed "OAuth client saved" toast). Google's own UI warns changes can take 5 minutes to a
+few hours to propagate — **not yet re-tested end-to-end**, do that before considering this closed.
+This is a separate OAuth client from the new Firebase Google Sign-In login system (different
+project, different purpose — Calendar API scope vs. app identity) — don't conflate the two.
+
+---
 <!-- archived from HANDOFF.md on 2026-08-16 (Firestore migration, census bug, block naming, modals) -->
 
 **Firestore migration (038a9eb) — the app's shared data is now real, persisted, real-time.**
