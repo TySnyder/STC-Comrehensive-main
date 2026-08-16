@@ -104,6 +104,34 @@ export interface Client {
 
 export type UaFrequency = 'twice-weekly' | 'weekly' | 'monthly' | 'external' | 'none';
 
+// Intake call log (doc 03, Sheet type A: "Monthly call log"). Prospective
+// clients only — not linked to a Client record. Follow-up status replaces
+// the spreadsheet's color-coding convention (doc 03 Q2, unresolved: exact
+// color meanings). Values below are a reasonable starting set, not confirmed
+// against the live sheet (doc 03 Q4: when does a caller become "pending admit"?).
+export type CallFollowUpStatus = 'New' | 'Follow-Up Needed' | 'Scheduled' | 'No Action Needed' | 'Closed';
+
+export interface CallLogEntry {
+  id: string;
+  date: string;                // ISO date of call
+  time?: string;                // free text, e.g. "10:15 AM"
+  intakeSpecialist: string;     // staff who took the call
+  callerName: string;
+  callerRelationship?: string;  // caller's relationship to prospective client
+  callerPhone?: string;
+  callerEmail?: string;
+  clientName: string;           // prospective client
+  clientPhone?: string;
+  clientEmail?: string;
+  location: 'SF' | 'ABQ';
+  referralSource?: string;
+  referringProvider?: string;   // referring therapist/prescriber
+  insurance?: string;
+  issuesNotes?: string;
+  clinicianNotes?: string;
+  followUpStatus: CallFollowUpStatus;
+}
+
 export interface UaAssignment {
   id: string;
   clientId: string;
