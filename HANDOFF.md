@@ -40,11 +40,15 @@ Apps Script Web App, real HTTP call from this React app, round-trip data — wit
 
 **Progress this pass:** (update as steps complete)
 
-- [ ] `stc-backend` project scaffolded via clasp
-- [ ] Sheet schema for UA assignments
-- [ ] `doGet`/`doPost` deployed as Web App
-- [ ] React util (`fetch` calls) + one proof-of-life wiring point
-- [ ] Confirmed working end-to-end from the actual browser (not just curl)
+- [x] `stc-backend` project scaffolded via clasp — DONE, real resources now exist:
+  - Local dir: `/Users/ts/github-sites/stc-backend` (own git repo, 2 commits, not yet pushed anywhere remote — no GitHub remote configured, purely local).
+  - Google Sheet: `STC Operations Portal Backend` — <https://drive.google.com/open?id=12vh7kgqbymaxIGMzFnipKnsD2Y-IRJ6MuDRqZgFZyvs>
+  - Apps Script project (bound to that Sheet): <https://script.google.com/d/1R1O2PEBUCrTLlJZU0C0d0-zleEgONNmoHofay9SEZo_-ShsAxoCIb9lp/edit>
+  - `.clasp.json` (committed, tracks both IDs above) is the only file besides `appsscript.json` — **no `Code.js` written yet, nothing pushed via `clasp push`, no Web App deployment exists yet.**
+- [ ] **NEXT CONCRETE STEP:** write `Code.js` in `/Users/ts/github-sites/stc-backend` with a UA-assignments Sheet schema (mirror the `UaAssignment` type in this repo's `src/types.ts`: id, clientId, weekStart, assignedDate, status, completedDate, completedBy, billed) and `doGet` (list as JSON) / `doPost` (upsert one, matched by id).
+- [ ] `clasp push` from `/Users/ts/github-sites/stc-backend`, then deploy as a Web App (`clasp deploy` or via the script editor) — per the defaults above, "Anyone, even anonymous" for this skeleton pass, clearly flagged as not safe once real data is involved.
+- [ ] React util (`fetch` calls) + one proof-of-life wiring point — likely `src/utils/uaAssignmentsApi.ts` in **this** repo (`STC-Comrehensive-main`), pointed at the deployed Web App URL via a new `.env` var.
+- [ ] Confirmed working end-to-end from the actual browser (not just curl) — same verification bar as Google Calendar/Gmail: Playwright can check the request shape, but real data round-tripping needs a manual check.
 
 ## Open items (older, still unresolved)
 
