@@ -4,7 +4,7 @@ description: Generate STC daily rundown from live Google Calendar/Gmail.
 license: "MIT"
 metadata:
   category: productivity
-  version: "1.0.1"
+  version: "1.1.0"
   author: "Tyler Snyder"
   hermes:
     tags: ["stc", "daily-rundown", "google-workspace", "calendar", "gmail"]
