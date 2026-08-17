@@ -18,28 +18,29 @@ unexpectedly changed, check `git blame` before assuming a bug** — it may be th
 automation, not a mistake. The skill is self-documenting (its own `SKILL.md`
 covers run-detection, email rendering, thread-replies) — not duplicated here.
 
-**Cloud-routine migration attempted 2026-08-17, abandoned for now — staying on
-"Claude Cowork"-driven cron.** Tried moving `stc-daily-rundown` to native Claude
-cloud routines (`RemoteTrigger`/`/schedule`) so it'd run unattended. Blocked:
-the `/schedule` skill's connector snapshot showed zero MCP connectors and no
-GitHub App the entire time, even after Tyler connected Gmail/Calendar/GitHub on
-the claude.ai Connectors page (checkmarks confirmed there) — the skill's
-connector list appears cached per-session rather than live-queried, and Gmail/
-Calendar access has been unreliable "for days" per Tyler, predating this
-attempt. **Decision: keep using Cowork to run the two crons manually for now**
-(same schedule as before — evening preliminary + morning update, Mon–Fri).
-Revisit native routines later if: (a) a fresh session shows the connectors as
-actually available to `/schedule`, and (b) the Claude GitHub App is confirmed
-installed (not just the generic "GitHub Integration" connector) — see
-`https://claude.ai/code/onboarding?magic=github-app-setup`. No routines were
-actually created, nothing to clean up.
+**All `stc-daily-rundown` automation is currently DISABLED — nothing runs
+unattended right now.** "Claude Cowork" turned out to already be two
+`RemoteTrigger` cloud routines (created 2026-08-17 ~05:2x UTC, before this
+handoff was written): `STC Daily Rundown PM` (`trig_01BQQQGFHjrVfDbyrspddJNm`,
+cron `0 3 * * 2-6` UTC = 9pm Denver Mon–Fri) and `STC Daily Rundown AM`
+(`trig_01WPWniw5wyMtUyGRMskk3ep`, cron `30 16 * * 1-5` UTC = 10:30am Denver
+Mon–Fri). Both were **disabled 2026-08-17 per Tyler's explicit request**
+(`enabled: false` via `RemoteTrigger update` — confirmed) because Gmail/
+Calendar access has been unreliable "for days." The separate Hermes cron jobs
+(`~/.hermes/cron/jobs.json`, "STC Rundown Evening"/"Morning") are gone from
+that file entirely as of this session — removed from elsewhere, not by this
+session. **To re-enable:** `RemoteTrigger update` with `{"enabled": true}` on
+those two trigger IDs once Gmail/Calendar access is reliable again — don't
+recreate them, they still exist, just disabled.
 
-**Target schedule, if native routines are revisited:** 9pm Denver Initial Run
-(cron `0 3 * * 2-6` UTC) and 10am Denver Update Run (cron `0 16 * * 1-5` UTC —
-always an update to the prior night's run). **DST reminder:** those cron
-expressions are fixed UTC and don't auto-adjust — when Denver falls back to
-MST around Nov 1 2026, they'd drift an hour early (~8pm/9am Denver) until
-manually shifted. Irrelevant while on Cowork, but keep in mind at cutover.
+**Note for later:** a `/schedule`-skill attempt earlier in this same session to
+*create new* routines kept reporting stale "no MCP connectors / no GitHub App"
+even after Tyler connected them on the Connectors page — that skill's
+connector snapshot may be cached per-session rather than live-queried. Re-test
+in a fresh session before trusting that snapshot again. **DST reminder:** the
+cron expressions above are fixed UTC and don't auto-adjust — when Denver falls
+back to MST around Nov 1 2026, they'll drift an hour early (~8pm/9am Denver)
+once re-enabled, until manually shifted.
 
 **Standing gotcha — do not drive Tyler's real Chrome window.** A past
 `osascript`/AppleScript UI-check navigated the *active tab of Tyler's actual,
