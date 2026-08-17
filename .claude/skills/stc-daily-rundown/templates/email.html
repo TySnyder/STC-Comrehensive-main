@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Daily Update</title>
+<!--[if mso]>
+<style>table,td,th{font-family:Arial,sans-serif;}</style>
+<![endif]-->
+<style>
+  @media (max-width: 620px) {
+    .container { width: 100% !important; }
+    .pad { padding-left: 16px !important; padding-right: 16px !important; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background-color:#eef1f4; -webkit-text-size-adjust:100%;">
+<div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">
+{{DATE_LONG}}'s priorities and full-day timeline &mdash; P1/P2 items at a glance.
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f4;">
+<tr><td align="center" style="padding:28px 12px;">
+<table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" class="container" style="width:480px; max-width:480px; background-color:#ffffff; border-radius:14px; overflow:hidden; box-shadow:0 4px 6px -1px rgba(30,41,59,0.08), 0 10px 24px -6px rgba(30,41,59,0.12);">
+
+<!-- LOGO BAR -->
+<tr><td align="center" style="padding:22px 20px 14px 20px; background:linear-gradient(180deg, #f5f7fb 0%, #ffffff 100%);">
+<img src="https://stc-comprehensive.vercel.app/stc-logo-horizontal-v2.webp" width="220" alt="Solutions Treatment Center" style="display:block; max-width:220px; height:auto; border:0;">
+</td></tr>
+
+<!-- HEADER -->
+<tr><td class="pad" style="padding:14px 20px; background:linear-gradient(135deg, #4338ca 0%, #4f46e5 55%, #6366f1 100%);">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td valign="middle" style="font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:700; color:#ffffff;">{{DATE_LONG}}</td>
+<td valign="middle" align="right" style="font-family:Arial, sans-serif; font-size:11px; color:#e0e7ff;">Week {{WEEK_RANGE}}</td>
+</tr></table>
+</td></tr>
+
+<!-- PRIORITIES -->
+<tr><td class="pad" style="padding:18px 20px 4px 20px;">
+<div style="font-family:Arial, sans-serif; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4f46e5;">Priorities</div>
+</td></tr>
+
+<tr><td class="pad" style="padding:6px 20px 6px 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+
+<!-- BEGIN REPEAT: one block per P1 priority item -->
+<tr><td style="padding:10px 12px; background-color:#eef0fd; border-radius:8px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+<td width="40" valign="top"><span style="display:inline-block; background-color:#c7ceff; color:#3730a3; font-family:Arial, sans-serif; font-size:9px; font-weight:700; letter-spacing:0.5px; line-height:14px; padding:1px 6px; border-radius:4px;">P1</span></td>
+<td valign="top" style="font-family:Arial, sans-serif; font-size:13px; color:#1e293b; line-height:18px;">
+<span style="font-weight:700;">{{PRIORITY_TITLE}}</span><!-- IF PRIORITY_NOTE --><br>
+<span style="font-size:11.5px; color:#94a3b8;">{{PRIORITY_NOTE}}</span><!-- END IF -->
+</td></tr></table></td></tr>
+<tr><td style="height:8px; line-height:8px; font-size:1px;">&nbsp;</td></tr>
+<!-- END REPEAT -->
+
+</table>
+</td></tr>
+
+<tr><td class="pad" style="padding:6px 20px;"><div style="border-top:1px solid #e2e8f0;"></div></td></tr>
+
+<!-- TIMELINE -->
+<tr><td class="pad" style="padding:16px 20px 14px 20px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+
+<!-- BEGIN REPEAT: one block per timeline entry, in chronological order -->
+<tr>
+<td width="54" valign="top" style="font-family:Arial, sans-serif; font-size:11px; color:#94a3b8; padding:0 8px 20px 0; text-align:right; line-height:12px;">{{TIME}}<br><span style="font-size:9px;">{{AMPM}}</span></td>
+<td valign="top" style="padding:2px 12px 20px 12px; border-left:2px solid #c7d2fe; font-family:Arial, sans-serif; font-size:13.5px; color:#1e293b;">
+<!-- IF PRIORITY = P1 --><span style="display:inline-block; background-color:#c7ceff; color:#3730a3; font-family:Arial, sans-serif; font-size:9px; font-weight:700; letter-spacing:0.5px; line-height:14px; padding:1px 6px; border-radius:4px; margin-right:6px; vertical-align:middle;">P1</span><!-- END IF -->
+<!-- IF PRIORITY = P2 --><span style="display:inline-block; background-color:#eef2ff; color:#6366f1; font-family:Arial, sans-serif; font-size:9px; font-weight:700; letter-spacing:0.5px; line-height:14px; padding:1px 6px; border-radius:4px; margin-right:6px; vertical-align:middle;">P2</span><!-- END IF -->
+<span style="font-weight:700; color:#1e293b;">{{TITLE}}</span>
+<!-- IF NOTE --><div style="font-size:11.5px; color:#94a3b8; margin-top:3px; font-weight:400;">{{NOTE}}</div><!-- END IF -->
+</td>
+</tr>
+<!-- END REPEAT (remove border-left on the LAST row's <td> since the line shouldn't extend past the final item) -->
+</table>
+</td></tr>
+
+<!-- FOOTER -->
+<tr><td align="center" style="padding:16px 20px 20px 20px; border-top:1px solid #e2e8f0; background-color:#f8fafc;">
+<div style="font-family:Arial, sans-serif; font-size:11px; line-height:16px; color:#94a3b8;">
+Automated daily update &middot; internal scheduling use only<br>
+<a href="#" style="color:#4f46e5; text-decoration:underline;">Unsubscribe</a>
+</div>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>

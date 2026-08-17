@@ -1,5 +1,5 @@
 # HANDOFF — director
-**Updated:** 2026-08-16
+**Updated:** 2026-08-17
 **App:** STC Operations Portal — internal behavioral health clinical-ops portal for admin staff (no consumer surface). React 19 / Vite / TS / Tailwind v4 + Firestore.
 **Commands:** `npm run dev` (port varies — 3000-3004 often taken; check console output) · gate: `tsc --noEmit` · tests: `npm run test` (vitest, 80 passing) · `npm run build`
 **Key docs:** `PRODUCT.md`, `DESIGN.md`, `.planning/PROJECT.md`, `.planning/spreadsheets/README.md` (open-questions workflow), `.planning/codebase/`
@@ -7,6 +7,27 @@
 ---
 
 ## Active phase — READ THIS FIRST
+
+**Task Track automation is live — full story in `HANDOFF-COMPLETED.md`** (search
+"Task Track automation"). Current state: `.planning/TASK-TRACK-TIMELINE.md` is
+maintained by both humans and an external scheduled skill
+(`.claude/skills/stc-daily-rundown/` — untracked in git as of 2026-08-17,
+add if you want it version-controlled), which also emails Tyler an HTML daily
+rundown (evening preliminary + morning update, Mon–Fri). **If that file looks
+unexpectedly changed, check `git blame` before assuming a bug** — it may be the
+automation, not a mistake. The skill is self-documenting (its own `SKILL.md`
+covers run-detection, email rendering, thread-replies) — not duplicated here.
+
+**No open blocker on this phase.** Everything above is committed and working.
+
+**Standing gotcha — do not drive Tyler's real Chrome window.** A past
+`osascript`/AppleScript UI-check navigated the *active tab of Tyler's actual,
+already-open* Chrome window instead of a fresh one. If browser verification is
+ever needed: open a brand-new window/profile, never `set URL of active tab of
+front window` on an already-running Chrome instance, and never send keystrokes
+via System Events (blocked here anyway — no Accessibility permission).
+
+## Prior active phase — client-forms doc-merge (still blocked, unrelated)
 
 **Real Google Sign-In + 5-role access is DEPLOYED and confirmed working via active use** (user has
 been driving the live app — header badge, sidebar, Client Forms modal all observed working). Commit

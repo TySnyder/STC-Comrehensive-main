@@ -3,6 +3,33 @@
 > Completed handoffs, moved verbatim from the director. Never read wholesale — search with `rg`.
 
 ---
+<!-- archived from HANDOFF.md on 2026-08-17 (Task Track automation) -->
+
+**Task Track Monday rundown shipped (360afce) and refined.** Wired Tyler's pasted Monday content
+into the real Task Track right rail: `.planning/TASK-TRACK-TIMELINE.md` (new `[P1]`/`[P2]` tag syntax
++ `<Day> Priorities` heading), `src/utils/timelineData.ts` (`getScheduleDay()` falls forward to the
+next weekday with content on weekends, returns `{ dayName, isPreview }`), `src/components/
+TaskTrackView.tsx` (untimed "Priorities" list above the spine timeline, "`<Day>` Preview" header on
+fallback). `tsc --noEmit` clean; user confirmed the weekend fallback renders correctly by hand (no
+automated browser check possible — app requires real Google Sign-In). `## Every Day` landmark times
+later corrected to match a real cron-pulled Daily Reminder run (8:00am Sean Communications through
+4:00pm General Progress Notes) and a duplicate Anthony Nieto/AnNi entry was merged out.
+
+**Pivoted away from the in-session `/daily-update` Claude Code skill approach.** Built
+`~/.claude/skills/daily-update/SKILL.md` as a global skill first, but Gmail/Calendar MCP connectors
+never authenticated in-session — abandoned in favor of a Hermes-agent-driven skill
+(`stc-daily-rundown`) using real Gmail/Calendar API access outside Claude Code. That in-session skill
+was deleted.
+
+**`stc-daily-rundown` automation now lives inside this repo** at `.claude/skills/stc-daily-rundown/`
+(untracked as of 2026-08-17 — add if you want it version-controlled). It runs on an external schedule
+("Claude Cowork," evening preliminary + morning update), and besides emailing Tyler an HTML rundown,
+its `scripts/update_task_track.py` **writes and pushes directly to
+`.planning/TASK-TRACK-TIMELINE.md`** — so commits to this file may appear in git history that weren't
+made by a human session. See that skill's own `SKILL.md` for the full mechanism (run-detection, email
+rendering, thread-replies) — it's self-documenting, not duplicated here.
+
+---
 <!-- archived from HANDOFF.md + HANDOFF-1.md on 2026-08-16 (real Auth + role-based access) -->
 
 **Real Google Sign-In + 5-role access deployed (2a8894c).** Replaced demo email/password auth
