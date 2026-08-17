@@ -18,7 +18,18 @@ unexpectedly changed, check `git blame` before assuming a bug** — it may be th
 automation, not a mistake. The skill is self-documenting (its own `SKILL.md`
 covers run-detection, email rendering, thread-replies) — not duplicated here.
 
-**No open blocker on this phase.** Everything above is committed and working.
+**In progress (2026-08-17): moving `stc-daily-rundown` from Hermes/"Claude Cowork"
+to native Claude cloud routines** (`RemoteTrigger`/`/schedule`), so it runs
+unattended without manual triggering. Two routines being set up — "STC Rundown
+Evening" (9pm Denver Mon–Fri → cron `0 3 * * 2-6` UTC) and "STC Rundown Morning"
+(10am Denver Mon–Fri → cron `0 16 * * 1-5` UTC, always an update to the prior
+night's run). **Blocked on:** Tyler connecting Gmail + Calendar MCP connectors
+at claude.ai/customize/connectors — the cloud sandbox has zero connectors
+attached right now, so the routines can't read mail/calendar until that's done.
+**DST reminder:** these cron expressions are fixed UTC and don't auto-adjust —
+when Denver falls back to MST around Nov 1 2026, both will drift an hour early
+(fire at ~8pm/9am Denver instead of 9pm/10am) until manually shifted back by an
+hour. Revisit this note in late Oct/early Nov 2026.
 
 **Standing gotcha — do not drive Tyler's real Chrome window.** A past
 `osascript`/AppleScript UI-check navigated the *active tab of Tyler's actual,
