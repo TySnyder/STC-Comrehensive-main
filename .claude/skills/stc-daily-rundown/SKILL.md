@@ -274,9 +274,11 @@ Initial Run's message is used for is finding where to thread the reply.
 gmail search 'in:sent subject:"STC Daily Update [Day], [Month] [Date], [Year]" newer_than:1d'
 ```
 - **Found** → deliver as a real reply in that thread, using `gmail reply`
-  (not `gmail send`) with its message ID:
+  (not `gmail send`) with its message ID. **Read `rendered.html`'s actual
+  contents first**, then pass that literal HTML text as `--body` — never
+  write `$(cat rendered.html)` as the value itself (see 8.3 for why):
   ```
-  gmail reply <message_id> --html --body "$(cat rendered.html)"
+  gmail reply <message_id> --html --body "<rendered.html's actual contents, read and inlined>"
   ```
   `gmail reply` sets `In-Reply-To`/`References`/`threadId` from the original
   message automatically — don't hand-build a subject line or use
@@ -354,21 +356,37 @@ you've never run this skill before, or after editing the template, to
 confirm it fills correctly and still references the hosted logo URL (not a
 `data:` or `cid:` embed — see the note above).
 
-### 8.3 Send it — no attachment needed
-`rendered.html` is the email body. The logo is a normal `https://` image
-reference (`https://stc-comprehensive.vercel.app/stc-logo-horizontal-v2.webp`)
-baked into the template, so it just works — no `--inline-image` flag, no MIME
-attachment, no base64 to reproduce:
+### 8.3 Send it — no attachment needed, but read the file for real
+
+`rendered.html`'s **contents** are the email body — not a shell command that
+produces them. **Read the file first** (with a Read/file tool), then pass
+that literal HTML text as the send tool's body parameter.
+
+**Never write `$(cat rendered.html)` as the literal body value.** That is
+shell command-substitution syntax — it only gets evaluated inside a real
+Bash shell. This skill is most commonly run through Gmail **MCP tools**, not
+a real shell, and MCP tools have no idea what `$(...)` means — they send it
+as a literal 22-character string. This already happened once: the entire
+email body was the text `$(cat /tmp/rendered.html)`, not the rendered page.
+If you catch yourself about to type `$(` into a body/htmlBody argument,
+stop — go read the file's actual contents and use those instead.
+
+The logo is a normal `https://` image reference
+(`https://stc-comprehensive.vercel.app/stc-logo-horizontal-v2.webp`) baked
+into the template, so no `--inline-image` flag or MIME attachment is needed
+either way.
+
+**If sending through Gmail MCP tools (the common case, no `terminal`/`gmail`
+CLI available):** read `rendered.html`, then pass its contents as `htmlBody`
+to `send_message`/`reply`.
+
+**If a real `gmail` CLI is available via a terminal tool:**
 ```
 gmail send --to tyler@treatmentconsultants.net --html \
   --subject "STC Daily Update Monday, August 17, 2026" \
-  --body "$(cat rendered.html)"
+  --body "<rendered.html's actual contents, read and inlined here>"
 ```
-(For the Update Run, use `gmail reply <message_id>` instead — same
-`--html`/`--body` flags, see 7.3.) If sending through Gmail MCP tools
-directly (no `terminal`/`gmail` CLI available), pass the rendered HTML as
-`htmlBody` to `send_message`/`reply` the same way — still no attachment
-required.
+(For the Update Run, use `gmail reply <message_id>` instead — same rule, see 7.3.)
 ---
 
 ## 9. Website Task Track Update
