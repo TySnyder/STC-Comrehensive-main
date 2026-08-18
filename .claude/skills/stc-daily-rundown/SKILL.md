@@ -12,6 +12,7 @@ metadata:
 ---
 
 ## When to Use
+
 - User asks for "daily rundown", "STC rundown", "today's rundown", "Monday rundown", etc.
 - Any request for a same-day or named-day operational summary for Solutions Treatment Center (STC).
 - The skill re-discovers from live mail/calendar every run — no cached state.
@@ -27,17 +28,21 @@ metadata:
 ## 1. Prerequisites & Setup
 
 ### 1.1 Confirm Connections
+
 - **Calendar**: If connected, list events for target date. If missing, note "Calendar not connected" and build times from email only.
 - **Gmail**: **Required**. If missing, stop and ask user to connect it.
 - **Timezone**: User's local zone (America/Denver unless mailbox indicates otherwise).
 
 ### 1.2 Identify Target Date
+
 - Named day (e.g., "Monday", "tomorrow", "August 18") → resolve to date.
 - Default: next workday (Mon–Fri).
 - All searches use this date in America/Denver.
 
 ### 1.3 Detect Run Type (Initial vs Update)
+
 Check the current time in America/Denver:
+
 - **2:00 PM or later → Initial Run** (the evening job). This is the first
   send for the target date — proceed normally, deliver per 7.2.
 - **Before 2:00 PM → Update Run** (the morning job). Re-gather fresh per
@@ -56,26 +61,31 @@ still runs for real; only the time-of-day decision is overridden.
 ## 2. Search Strategy (Every Run, Fresh)
 
 ### 2.1 Calendar First (if connected)
+
 - List all events for target date.
 - Treat calendar events as **timed facts**.
 
 ### 2.2 Gmail Searches (in order, using search queries not hunches)
+
 1. **Unread & recent inbox** (~last 4 days + anything dated for target day)
 2. **Date-named mail**: Subject/body contains target date, "Daily Reminder", group schedule for that week, SOS/EOS from previous business day, time-off/out-early, UA needs for that week, virtual links for that week, census/other unsent drafts
 3. **Tyler-named mail**: Subject/body/from/to contains "Tyler" or "Tyler Snyder" (catches emails sent to/from user, tasks assigned to user)
 4. **Starred/important recent** that still looks open
 
 ### 2.3 Thread Resolution
+
 - Open a thread before treating something as an open task.
 - If user already answered → drop it or keep only a later leftover ask.
 - **Never relist a closed question**.
 
 ### 2.4 Ignore List
+
 - Security alerts
 - Product welcome emails
 - Marketing/promotional mail
 
 ### 2.5 Pattern Learning (per run)
+
 - Learn who sends Daily Reminder
 - Learn where group times live
 - Learn where next-day items appear in clock-out mail
@@ -91,11 +101,13 @@ still runs for real; only the time-of-day decision is overridden.
 | **Actionable Item** | User expected to do it (calls, drafts, pings, schedules to print, links to send, tabs to update) | P1/P2/P3 |
 
 ### Priority Rules
+
 - **P1**: User must do it, OR confirmed appointment they run
 - **P2**: Happens that day (groups, other staff appointments, coverage) OR standard opener for role
 - **P3 / Background**: Upcoming later this week, someone else's lane, unread mail not day-critical
 
 ### Time Rules
+
 - **Never invent a time**.
 - If inferring group time from last same weekday → label **"inferred"**.
 - If source missing (no UA list, calendar disconnected, schedule doc unreadable) → note at end.
@@ -105,16 +117,21 @@ still runs for real; only the time-of-day decision is overridden.
 ## 4. Output Format (In This Order)
 
 ### 4.1 Source Line
+
 Short line: what searched, Calendar connected?, whose mail used.
 
 ### 4.2 Priority List (Actionable Items)
+
 P1 items → P2 items → P3 items. No times required.
 
 ### 4.3 Timeline (Events Only)
+
 Clock times only, chronological.
 
 ### 4.4 Combined Chronological List
+
 Every actionable item + every event on one timeline.
+
 - **Untimed openers** → under **"Open (before first timed item)"**
 - Each line: `time (or Open) | priority | who/what | source (few words)`
 - End with:
@@ -124,6 +141,7 @@ Every actionable item + every event on one timeline.
 ---
 
 ## 5. Style Guidelines
+
 - Use mailbox's own shorthand (subject-line codes, not extra narrative)
 - **One list, not a memo**
 - No advice beyond the rundown unless something is blocked
@@ -132,6 +150,7 @@ Every actionable item + every event on one timeline.
 ---
 
 ## 6. Tool Usage
+
 - `google-workspace` skill for Calendar/Gmail access
 - `terminal` for date calculations if needed
 - No other external tools required
@@ -141,6 +160,7 @@ Every actionable item + every event on one timeline.
 ## 7. Output Formats
 
 ### 7.1 Full Rundown (Default Format)
+
 Full format with source line, priority list, timeline, combined list with sources, Background section, and Could Not Confirm section. Used for ad-hoc requests — not tied to either scheduled cron run (see 7.2/7.3 for those).
 
 ```Source: Calendar ✓, Gmail ✓ (tyler@treatmentconsultants.net), target: Monday 2026-08-17 MDT
@@ -186,13 +206,15 @@ Could not confirm
 ```
 
 ### 7.2 Evening Preliminary Rundown (Initial Run)
+
 **Trigger**: User asks for "evening preliminary", "preliminary rundown", or "8pm rundown" — or detected as the Initial Run per 1.3.
 **Modifications from standard:**
+
 - **Omit** Source line
 - **Omit** "Background, not timed" section
 - **Omit** "Could not confirm" section
 - **Combined list**: Show only `time | priority | who/what` — no source annotations
-- **Deliver via email** to tyler@treatmentconsultants.net with subject: `STC Daily Update [Day], [Month] [Date], [Year]`
+- **Deliver via email** to <tyler@treatmentconsultants.net> with subject: `STC Daily Update [Day], [Month] [Date], [Year]`
 - **Email body is HTML**, rendered via `scripts/render_email.py` — see section 8.
 - **Logo is a hosted URL** — `https://stc-comprehensive.vercel.app/stc-logo-horizontal-v2.webp` (see 8.3). No inline attachment or `--inline-image` flag needed; the HTML `<img src>` points straight at it.
 - This is the first email for the target date — followed by the Update Run
@@ -248,10 +270,12 @@ Open  P1  QOL with Zainah at 10:30 AM
 ```
 
 ### 7.3 Morning Update (Update Run)
+
 **Trigger**: Detected as the Update Run per 1.3 (before 2:00 PM), or user
 asks for "morning update," "last-minute updates," or similar.
 
 **Behavior:**
+
 - Re-gather fresh per section 2 — same as always, no cached state.
 - Fold anything new into **one current rundown**, not a separate delta list:
   a newly confirmed appointment, a cancellation, a reply that closes out a
@@ -270,16 +294,20 @@ and it can't inherit a mistake the evening run made. The only thing the
 Initial Run's message is used for is finding where to thread the reply.
 
 **Find the Initial Run's message, if any:**
+
 ```
 gmail search 'in:sent subject:"STC Daily Update [Day], [Month] [Date], [Year]" newer_than:1d'
 ```
+
 - **Found** → deliver as a real reply in that thread, using `gmail reply`
   (not `gmail send`) with its message ID. **Read `rendered.html`'s actual
   contents first**, then pass that literal HTML text as `--body` — never
   write `$(cat rendered.html)` as the value itself (see 8.3 for why):
+
   ```
   gmail reply <message_id> --html --body "<rendered.html's actual contents, read and inlined>"
   ```
+
   `gmail reply` sets `In-Reply-To`/`References`/`threadId` from the original
   message automatically — don't hand-build a subject line or use
   `gmail send --thread-id` for this, `reply` is the correct tool for it. No
@@ -327,6 +355,7 @@ the plain-text/chat rundown as before, just don't try to force them into this
 template.
 
 ### 8.1 Data shape
+
 ```json
 {
   "date_long": "Monday, August 17, 2026",
@@ -342,15 +371,19 @@ template.
   ]
 }
 ```
+
 - `priorities` — P1 untimed items only from 4.2; `note` may be `""`.
 - `timeline` — every clock-time row from the Combined list (4.4), chronological;
   `priority` is `"P1"`, `"P2"`, or `""` for an untagged landmark; `note` may be `""`.
 
 ### 8.2 Run it
+
 Write the JSON to a temp file, then (via the `terminal` tool):
+
 ```
 python3 <skill-folder>/scripts/render_email.py data.json > rendered.html
 ```
+
 Run `python3 <skill-folder>/scripts/render_email.py --selftest` once if
 you've never run this skill before, or after editing the template, to
 confirm it fills correctly and still references the hosted logo URL (not a
@@ -381,11 +414,13 @@ CLI available):** read `rendered.html`, then pass its contents as `htmlBody`
 to `send_message`/`reply`.
 
 **If a real `gmail` CLI is available via a terminal tool:**
+
 ```
 gmail send --to tyler@treatmentconsultants.net --html \
   --subject "STC Daily Update Monday, August 17, 2026" \
   --body "<rendered.html's actual contents, read and inlined here>"
 ```
+
 (For the Update Run, use `gmail reply <message_id>` instead — same rule, see 7.3.)
 ---
 
@@ -409,9 +444,11 @@ skip this section (and say so in chat) if the target date somehow isn't a
 weekday.
 
 ### 9.1 Data shape
+
 Similar to 8.1 but not identical — `priorities` here includes **both P1 and
 P2** untimed items (the website supports both tiers; the email template only
 had room for P1), and every entry needs an explicit `"priority"` field:
+
 ```json
 {
   "weekday": "Monday",
@@ -426,14 +463,17 @@ had room for P1), and every entry needs an explicit `"priority"` field:
   ]
 }
 ```
+
 - `priorities` — every P1/P2 untimed item from 4.2 (P3 has no home here either — same as the email).
 - `timeline` — every row from the Combined list (4.4), chronological, `time` as e.g. `10:30am` (lowercase, no space); `priority` is `"P1"`, `"P2"`, or `""` for an untagged landmark like the `## Every Day` items.
 - Don't include `## Every Day` items unless something about that specific day changes them — they're already seeded site-wide.
 
 ### 9.2 Run it
+
 ```
 python3 <skill-folder>/scripts/update_task_track.py data.json --repo /Users/ts/github-sites/STC-Comrehensive-main
 ```
+
 This replaces only that weekday's two sections in `TASK-TRACK-TIMELINE.md`
 (leaving `## Every Day` and every other weekday untouched), commits, and
 pushes. Run `python3 <skill-folder>/scripts/update_task_track.py --selftest`
